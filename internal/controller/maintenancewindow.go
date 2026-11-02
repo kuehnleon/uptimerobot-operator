@@ -26,10 +26,12 @@ func setupMaintenanceWindow(mgr ctrl.Manager, o Options) error {
 			b := map[string]any{
 				"name":     or(s.FriendlyName, w.Name),
 				"interval": s.Interval,
-				"date":     s.Date,
 				"time":     s.Time,
 				"duration": s.Duration,
 				"status":   map[bool]string{true: "paused", false: "active"}[s.Paused],
+			}
+			if s.Date != "" {
+				b["date"] = s.Date
 			}
 			if len(s.Days) > 0 {
 				b["days"] = s.Days

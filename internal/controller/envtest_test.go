@@ -71,6 +71,12 @@ func TestIntegration(t *testing.T) {
 	if err := c.Create(ctx, invalid); err == nil || !strings.Contains(err.Error(), "keyword is required") {
 		t.Fatalf("expected CEL validation error, got %v", err)
 	}
+	invalidMW := &v1alpha1.MaintenanceWindow{ObjectMeta: metav1.ObjectMeta{Name: "invalid", Namespace: "default"},
+		Spec: v1alpha1.MaintenanceWindowSpec{Interval: "weekly", Date: "2026-01-01", Time: "03:00:00", Duration: 30}}
+	if err := c.Create(ctx, invalidMW); err == nil || !strings.Contains(err.Error(), "date is required for once") ||
+		!strings.Contains(err.Error(), "days are required") {
+		t.Fatalf("expected CEL validation errors, got %v", err)
+	}
 
 	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "default", Labels: map[string]string{"app": "web"},
@@ -98,7 +104,7 @@ func TestIntegration(t *testing.T) {
 	psp := &v1alpha1.PublicStatusPage{ObjectMeta: metav1.ObjectMeta{Name: "status", Namespace: "default"},
 		Spec: v1alpha1.PublicStatusPageSpec{MonitorSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "web"}}}}
 	mw := &v1alpha1.MaintenanceWindow{ObjectMeta: metav1.ObjectMeta{Name: "nightly", Namespace: "default"},
-		Spec: v1alpha1.MaintenanceWindowSpec{Interval: "daily", Date: "2026-01-01", Time: "03:00:00", Duration: 30, Paused: true,
+		Spec: v1alpha1.MaintenanceWindowSpec{Interval: "daily", Time: "03:00:00", Duration: 30, Paused: true,
 			MonitorSelector: &metav1.LabelSelector{}}}
 	for _, obj := range []client.Object{psp, mw} {
 		if err := c.Create(ctx, obj); err != nil {
