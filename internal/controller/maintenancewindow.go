@@ -14,6 +14,7 @@ import (
 func setupMaintenanceWindow(mgr ctrl.Manager, o Options) error {
 	r := &syncer[*v1alpha1.MaintenanceWindow]{
 		Client:     mgr.GetClient(),
+		reader:     mgr.GetAPIReader(),
 		ur:         o.Client,
 		events:     mgr.GetEventRecorder("uptimerobot-operator"),
 		interval:   o.SyncInterval,

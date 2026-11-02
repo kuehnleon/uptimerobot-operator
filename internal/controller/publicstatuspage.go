@@ -15,6 +15,7 @@ import (
 func setupPublicStatusPage(mgr ctrl.Manager, o Options) error {
 	r := &syncer[*v1alpha1.PublicStatusPage]{
 		Client:   mgr.GetClient(),
+		reader:   mgr.GetAPIReader(),
 		ur:       o.Client,
 		events:   mgr.GetEventRecorder("uptimerobot-operator"),
 		interval: o.SyncInterval,
