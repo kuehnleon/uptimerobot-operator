@@ -1,0 +1,49 @@
+# Sample resources for manual testing, e.g. on kind: kubectl apply -f hack/samples.yaml
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: Monitor
+metadata:
+  name: sample
+  labels:
+    app: sample
+spec:
+  type: HTTP
+  url: https://example.com
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sample
+  labels:
+    app: sample
+  annotations:
+    uptimerobot.kuehnleon.github.io/enabled: "true"
+    uptimerobot.kuehnleon.github.io/type: KEYWORD
+    uptimerobot.kuehnleon.github.io/keyword.type: ALERT_NOT_EXISTS
+    uptimerobot.kuehnleon.github.io/keyword.value: Example Domain
+spec:
+  tls:
+    - hosts: [example.org]
+  rules:
+    - host: example.org
+---
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: MaintenanceWindow
+metadata:
+  name: sample
+spec:
+  interval: daily
+  date: "2026-01-01"
+  time: "03:00:00"
+  duration: 30
+  monitorSelector:
+    matchLabels:
+      app: sample
+---
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: PublicStatusPage
+metadata:
+  name: sample
+spec:
+  monitorSelector:
+    matchLabels:
+      app: sample
