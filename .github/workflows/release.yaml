@@ -1,13 +1,9 @@
 name: Release
 
+# Updates CHANGELOG.md and the chart version, commits and tags the next version.
+# Pushes use RELEASE_TOKEN (a PAT of an admin) to bypass the branch ruleset and to
+# trigger the Build workflow for the tag.
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
-  # Build only, to verify the image (e.g. Dependabot base image updates).
-  pull_request:
-  # Updates CHANGELOG.md, tags the next version and releases it in the same run
-  # (tags pushed with GITHUB_TOKEN trigger no workflows).
   workflow_dispatch:
     inputs:
       bump:
@@ -16,27 +12,21 @@ on:
         options: [auto, patch, minor, major]
         default: auto
 
+concurrency:
+  group: release
+
 permissions:
   contents: read
-  packages: write
-
-env:
-  # Add linux/amd64 for a multi-platform image.
-  PLATFORMS: linux/arm64
 
 jobs:
-  tag:
-    if: github.event_name == 'workflow_dispatch'
+  release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      version: ${{ steps.changelog.outputs.version }}
     steps:
       - name: Require main branch
         run: test "$GITHUB_REF" = refs/heads/main
       - uses: actions/checkout@v7
         with:
+          token: ${{ secrets.RELEASE_TOKEN }}
           fetch-depth: 0
       - id: changelog
         uses: orhun/git-cliff-action@v4
@@ -44,75 +34,13 @@ jobs:
           args: --bump ${{ inputs.bump != 'auto' && inputs.bump || '' }}
         env:
           OUTPUT: CHANGELOG.md
-      - name: Commit changelog and tag
+      - name: Commit and tag
         env:
-          VERSION: ${{ steps.changelog.outputs.version }}
+          TAG: ${{ steps.changelog.outputs.version }}
         run: |
+          sed -i -e "s/^version:.*/version: ${TAG#v}/" -e "s/^appVersion:.*/appVersion: ${TAG#v}/" charts/uptimerobot-operator/Chart.yaml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore(release): $VERSION"
-          git tag "$VERSION"
-          git push --atomic origin HEAD:main "$VERSION"
-
-  image:
-    needs: tag
-    if: ${{ !failure() && !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.tag.outputs.version }}
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=sha,enable=${{ github.event_name != 'workflow_dispatch' }}
-            type=semver,pattern={{version}},value=${{ needs.tag.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.tag.outputs.version }}
-      - uses: docker/build-push-action@v7
-        with:
-          platforms: ${{ env.PLATFORMS }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  release:
-    needs: [tag, image]
-    if: ${{ !failure() && !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.tag.outputs.version) }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-    env:
-      TAG: ${{ needs.tag.outputs.version || github.ref_name }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ env.TAG }}
-          fetch-depth: 0
-      - uses: azure/setup-helm@v5
-      - name: Package and push chart
-        run: |
-          version=${TAG#v}
-          helm package charts/uptimerobot-operator --version "$version" --app-version "$version"
-          echo "$GH_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
-          helm push "uptimerobot-operator-$version.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
-      - uses: orhun/git-cliff-action@v4
-        with:
-          args: --current --strip all
-        env:
-          OUTPUT: RELEASE_NOTES.md
-      - name: Create GitHub release
-        run: gh release create "$TAG" "uptimerobot-operator-${TAG#v}.tgz" --notes-file RELEASE_NOTES.md --verify-tag
+          git commit -am "chore(release): $TAG"
+          git tag "$TAG"
+          git push --atomic origin HEAD:main "$TAG"
