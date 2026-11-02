@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -71,6 +72,12 @@ func TestIntegration(t *testing.T) {
 	if err := c.Create(ctx, invalid); err == nil || !strings.Contains(err.Error(), "keyword is required") {
 		t.Fatalf("expected CEL validation error, got %v", err)
 	}
+	invalidContact := &v1alpha1.Monitor{ObjectMeta: metav1.ObjectMeta{Name: "invalid", Namespace: "default"},
+		Spec: v1alpha1.MonitorSpec{Type: "HTTP", URL: "x", AlertContacts: []v1alpha1.AlertContact{
+			{ID: 1, IntegrationRef: &corev1.LocalObjectReference{Name: "hook"}}}}}
+	if err := c.Create(ctx, invalidContact); err == nil || !strings.Contains(err.Error(), "exactly one of id or integrationRef") {
+		t.Fatalf("expected CEL validation error, got %v", err)
+	}
 	invalidMW := &v1alpha1.MaintenanceWindow{ObjectMeta: metav1.ObjectMeta{Name: "invalid", Namespace: "default"},
 		Spec: v1alpha1.MaintenanceWindowSpec{Interval: "weekly", Date: "2026-01-01", Time: "03:00:00", Duration: 30}}
 	if err := c.Create(ctx, invalidMW); err == nil || !strings.Contains(err.Error(), "date is required for once") ||
@@ -80,7 +87,8 @@ func TestIntegration(t *testing.T) {
 
 	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "default", Labels: map[string]string{"app": "web"},
-			Annotations: map[string]string{AnnotationPrefix + "enabled": "true", AnnotationPrefix + "interval": "60"}},
+			Annotations: map[string]string{AnnotationPrefix + "enabled": "true", AnnotationPrefix + "interval": "60",
+				AnnotationPrefix + "alertContacts": `[{"integrationRef": {"name": "hook"}}]`}},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{Host: "web.example.com"}},
 			TLS:   []networkingv1.IngressTLS{{Hosts: []string{"web.example.com"}}},
@@ -89,13 +97,35 @@ func TestIntegration(t *testing.T) {
 	if err := c.Create(ctx, ing); err != nil {
 		t.Fatal(err)
 	}
+	// Created after the referencing Monitor, which must wait for it.
+	hook := &v1alpha1.Integration{ObjectMeta: metav1.ObjectMeta{Name: "hook", Namespace: "default"},
+		Spec: v1alpha1.IntegrationSpec{Type: "Webhook", Config: &runtime.RawExtension{Raw: []byte(`{"postValue": "down"}`)},
+			SecretConfig: map[string]corev1.SecretKeySelector{"urlToNotify": {
+				LocalObjectReference: corev1.LocalObjectReference{Name: "hook"}, Key: "url"}}}}
+	hookSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "hook", Namespace: "default"},
+		StringData: map[string]string{"url": "https://hooks.example.com/secret"}}
+	for _, obj := range []client.Object{hookSecret, hook} {
+		if err := c.Create(ctx, obj); err != nil {
+			t.Fatal(err)
+		}
+	}
+	eventually("integration synced", func() error {
+		_ = c.Get(ctx, client.ObjectKeyFromObject(hook), hook)
+		r := api.get("integrations", hook.Status.ID)
+		if data, _ := r["data"].(map[string]any); data["urlToNotify"] != "https://hooks.example.com/secret" || data["postValue"] != "down" {
+			return fmt.Errorf("remote %v", r)
+		}
+		return nil
+	})
 	m := &v1alpha1.Monitor{}
 	eventually("monitor synced", func() error {
 		if err := c.Get(ctx, client.ObjectKey{Namespace: "default", Name: "ingress-web"}, m); err != nil {
 			return err
 		}
 		r := api.get("monitors", m.Status.ID)
-		if r["url"] != "https://web.example.com" || r["interval"] != float64(60) || m.Status.State != "UP" {
+		contacts := fmt.Sprint(r["assignedAlertContacts"])
+		if r["url"] != "https://web.example.com" || r["interval"] != float64(60) || m.Status.State != "UP" ||
+			contacts != fmt.Sprintf("[map[alertContactId:%d recurrence:0 threshold:0]]", hook.Status.ID) {
 			return fmt.Errorf("remote %v, status %+v", r, m.Status)
 		}
 		return nil

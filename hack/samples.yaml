@@ -8,6 +8,21 @@ metadata:
 spec:
   type: HTTP
   url: https://example.com
+  alertContacts:
+    - integrationRef:
+        name: sample
+---
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: Integration
+metadata:
+  name: sample
+spec:
+  type: Webhook
+  enableNotificationsFor: Down
+  config:
+    urlToNotify: https://example.com/uptimerobot
+    postValue: '{"monitor": "*monitorFriendlyName*", "status": "*alertTypeFriendlyName*"}'
+    sendAsJSON: true
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
