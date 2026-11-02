@@ -1,8 +1,8 @@
 # uptimerobot-operator
 
-Kubernetes operator managing [UptimeRobot](https://uptimerobot.com) monitors, integrations, maintenance windows and public status pages, using the [UptimeRobot v3 API](https://uptimerobot.com/api/v3/).
+Kubernetes operator managing [UptimeRobot](https://uptimerobot.com) monitors, monitor groups, integrations, maintenance windows and public status pages, using the [UptimeRobot v3 API](https://uptimerobot.com/api/v3/).
 
-- `Monitor`, `Integration`, `MaintenanceWindow` and `PublicStatusPage` custom resources
+- `Monitor`, `MonitorGroup`, `Integration`, `MaintenanceWindow` and `PublicStatusPage` custom resources
 - Monitors for annotated `Ingress` and Traefik `IngressRoute` resources
 - Built for API rate limits: client-side rate limiting and one cached list request per resource type and sync interval, independent of the number of resources
 
@@ -52,6 +52,8 @@ spec:
     - integrationRef:
         name: team-slack # Integration in the same namespace
     - id: 1234567 # or any alert contact by ID
+  groupRef:
+    name: team-a # MonitorGroup in the same namespace
   auth:
     type: HTTP_BASIC
     username: monitor
@@ -76,6 +78,19 @@ metadata:
 ```
 
 The URL defaults to the first host (`https` if TLS is configured) and can be overridden with `uptimerobot.kuehnleon.github.io/url`. The labels of the source resource are copied to the `Monitor`.
+
+### MonitorGroup
+
+```yaml
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: MonitorGroup
+metadata:
+  name: team-a
+spec:
+  friendlyName: Team A # defaults to the resource name
+```
+
+Monitors join a group via `spec.groupRef`.
 
 ### Integration
 

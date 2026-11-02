@@ -88,7 +88,8 @@ func TestIntegration(t *testing.T) {
 	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "default", Labels: map[string]string{"app": "web"},
 			Annotations: map[string]string{AnnotationPrefix + "enabled": "true", AnnotationPrefix + "interval": "60",
-				AnnotationPrefix + "alertContacts": `[{"integrationRef": {"name": "hook"}}]`}},
+				AnnotationPrefix + "alertContacts": `[{"integrationRef": {"name": "hook"}}]`,
+				AnnotationPrefix + "groupRef.name": "team"}},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{Host: "web.example.com"}},
 			TLS:   []networkingv1.IngressTLS{{Hosts: []string{"web.example.com"}}},
@@ -104,7 +105,8 @@ func TestIntegration(t *testing.T) {
 				LocalObjectReference: corev1.LocalObjectReference{Name: "hook"}, Key: "url"}}}}
 	hookSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "hook", Namespace: "default"},
 		StringData: map[string]string{"url": "https://hooks.example.com/secret"}}
-	for _, obj := range []client.Object{hookSecret, hook} {
+	team := &v1alpha1.MonitorGroup{ObjectMeta: metav1.ObjectMeta{Name: "team", Namespace: "default"}}
+	for _, obj := range []client.Object{hookSecret, hook, team} {
 		if err := c.Create(ctx, obj); err != nil {
 			t.Fatal(err)
 		}
@@ -122,10 +124,12 @@ func TestIntegration(t *testing.T) {
 		if err := c.Get(ctx, client.ObjectKey{Namespace: "default", Name: "ingress-web"}, m); err != nil {
 			return err
 		}
+		_ = c.Get(ctx, client.ObjectKeyFromObject(team), team)
 		r := api.get("monitors", m.Status.ID)
 		contacts := fmt.Sprint(r["assignedAlertContacts"])
 		if r["url"] != "https://web.example.com" || r["interval"] != float64(60) || m.Status.State != "UP" ||
-			contacts != fmt.Sprintf("[map[alertContactId:%d recurrence:0 threshold:0]]", hook.Status.ID) {
+			contacts != fmt.Sprintf("[map[alertContactId:%d recurrence:0 threshold:0]]", hook.Status.ID) ||
+			r["groupId"] != float64(team.Status.ID) || api.get("monitor-groups", team.Status.ID)["name"] != "team" {
 			return fmt.Errorf("remote %v, status %+v", r, m.Status)
 		}
 		return nil

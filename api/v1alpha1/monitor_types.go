@@ -10,6 +10,7 @@ import (
 // +kubebuilder:validation:XValidation:rule="self.type == 'HEARTBEAT' || has(self.url)",message="url is required"
 // +kubebuilder:validation:XValidation:rule="self.type != 'KEYWORD' || has(self.keyword)",message="keyword is required for KEYWORD monitors"
 // +kubebuilder:validation:XValidation:rule="!(self.type in ['PORT', 'UDP']) || has(self.port)",message="port is required for PORT and UDP monitors"
+// +kubebuilder:validation:XValidation:rule="!(has(self.groupId) && has(self.groupRef))",message="groupId and groupRef are mutually exclusive"
 type MonitorSpec struct {
 	// +kubebuilder:validation:Enum=HTTP;KEYWORD;PING;PORT;HEARTBEAT;DNS;API;UDP
 	Type string `json:"type"`
@@ -62,8 +63,12 @@ type MonitorSpec struct {
 	AlertContacts []AlertContact `json:"alertContacts,omitempty"`
 	// +optional
 	Tags []string `json:"tags,omitempty"`
+	// ID of a monitor group in UptimeRobot.
 	// +optional
 	GroupID *int64 `json:"groupId,omitempty"`
+	// MonitorGroup in the same namespace.
+	// +optional
+	GroupRef *corev1.LocalObjectReference `json:"groupRef,omitempty"`
 	// Type specific configuration passed as-is to the API, e.g. dnsRecords or apiAssertions.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object

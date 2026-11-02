@@ -26,7 +26,7 @@ func setupMonitor(mgr ctrl.Manager, o Options) error {
 		path:     "/monitors",
 		newObj:   func() *v1alpha1.Monitor { return &v1alpha1.Monitor{} },
 		drift: []string{"friendlyName", "url", "interval", "timeout", "port", "gracePeriod",
-			"keywordType", "keywordValue", "httpMethodType", "checkSSLErrors", "followRedirections"},
+			"keywordType", "keywordValue", "httpMethodType", "checkSSLErrors", "followRedirections", "groupId"},
 		desired: func(ctx context.Context, m *v1alpha1.Monitor) (map[string]any, error) {
 			return monitorBody(ctx, mgr.GetClient(), secretGetter(mgr.GetAPIReader(), m.Namespace), m)
 		},
@@ -55,6 +55,7 @@ func setupMonitor(mgr ctrl.Manager, o Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Monitor{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&v1alpha1.Integration{}, enqueueAll(mgr.GetClient(), func() client.ObjectList { return &v1alpha1.MonitorList{} })).
+		Watches(&v1alpha1.MonitorGroup{}, enqueueAll(mgr.GetClient(), func() client.ObjectList { return &v1alpha1.MonitorList{} })).
 		Complete(r)
 }
 
@@ -78,6 +79,13 @@ func monitorBody(ctx context.Context, c client.Reader, secret secretFunc, m *v1a
 	opt(b, "sslExpirationReminder", s.SSLExpirationReminder)
 	opt(b, "domainExpirationReminder", s.DomainExpirationReminder)
 	opt(b, "groupId", s.GroupID)
+	if s.GroupRef != nil {
+		id, err := refID(ctx, c, m.Namespace, s.GroupRef.Name, &v1alpha1.MonitorGroup{})
+		if err != nil {
+			return nil, err
+		}
+		b["groupId"] = id
+	}
 	if s.Keyword != nil {
 		b["keywordType"] = s.Keyword.Type
 		b["keywordValue"] = s.Keyword.Value

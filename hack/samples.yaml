@@ -11,6 +11,13 @@ spec:
   alertContacts:
     - integrationRef:
         name: sample
+  groupRef:
+    name: sample
+---
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: MonitorGroup
+metadata:
+  name: sample
 ---
 apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
 kind: Integration
