@@ -76,4 +76,13 @@ jobs:
         env:
           OUTPUT: RELEASE_NOTES.md
       - name: Create GitHub release
-        run: gh release create "$GITHUB_REF_NAME" "uptimerobot-operator-${GITHUB_REF_NAME#v}.tgz" --notes-file RELEASE_NOTES.md --verify-tag
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          {
+            # The release title already shows the version.
+            sed -e '1{/^## /d;}' RELEASE_NOTES.md | sed '/./,$!d'
+            # shellcheck disable=SC2016 # literal Markdown code fence
+            printf '\n## Artifacts\n\n```sh\ndocker pull ghcr.io/%s:%s\nhelm pull oci://ghcr.io/%s/charts/uptimerobot-operator --version %s\n```\n' \
+              "$GITHUB_REPOSITORY" "$version" "$GITHUB_REPOSITORY_OWNER" "$version"
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" "uptimerobot-operator-$version.tgz" --notes-file notes.md --verify-tag
