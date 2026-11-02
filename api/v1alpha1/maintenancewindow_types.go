@@ -3,15 +3,18 @@ package v1alpha1
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // MaintenanceWindowSpec defines the desired state of a MaintenanceWindow.
+// +kubebuilder:validation:XValidation:rule="self.interval == 'once' ? has(self.date) : !has(self.date)",message="date is required for once and not allowed for recurring windows"
+// +kubebuilder:validation:XValidation:rule="self.interval in ['weekly', 'monthly'] ? has(self.days) : !has(self.days)",message="days are required for weekly and monthly windows and not allowed otherwise"
 type MaintenanceWindowSpec struct {
 	// Defaults to the resource name.
 	// +optional
 	FriendlyName string `json:"friendlyName,omitempty"`
 	// +kubebuilder:validation:Enum=once;daily;weekly;monthly
 	Interval string `json:"interval"`
-	// Start date (YYYY-MM-DD).
+	// Date (YYYY-MM-DD) of a one-time window.
 	// +kubebuilder:validation:Pattern=`^\d{4}-\d{2}-\d{2}$`
-	Date string `json:"date"`
+	// +optional
+	Date string `json:"date,omitempty"`
 	// Start time (HH:mm:ss).
 	// +kubebuilder:validation:Pattern=`^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$`
 	Time string `json:"time"`
@@ -19,6 +22,7 @@ type MaintenanceWindowSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	Duration int32 `json:"duration"`
 	// Weekdays (1-7) for weekly or days of month (-1 for last day) for monthly windows.
+	// +kubebuilder:validation:MinItems=1
 	// +optional
 	Days []int32 `json:"days,omitempty"`
 	// Selects Monitors in the same namespace. An empty selector selects all Monitors; if unset, assigned monitors are not managed.
