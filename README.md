@@ -97,6 +97,8 @@ spec:
       key: webhook-url
 ```
 
+Available types depend on the UptimeRobot plan (e.g. `Webhook` is not available on Free and Solo), and some types validate their URL on creation.
+
 `config` and `secretConfig` hold the type specific fields of the [API](https://uptimerobot.com/api/v3/#post-/integrations), e.g. `webhookURL` (Slack, MSTeams, Discord, Mattermost), `urlToNotify` and `postValue` (Webhook) or `integrationKey` (Pagerduty).
 
 ### MaintenanceWindow

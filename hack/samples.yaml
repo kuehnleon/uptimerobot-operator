@@ -17,12 +17,11 @@ kind: Integration
 metadata:
   name: sample
 spec:
-  type: Webhook
+  type: MSTeams
   enableNotificationsFor: Down
   config:
-    urlToNotify: https://example.com/uptimerobot
-    postValue: '{"monitor": "*monitorFriendlyName*", "status": "*alertTypeFriendlyName*"}'
-    sendAsJSON: true
+    # Placeholder, replace with a real incoming webhook URL.
+    webhookURL: https://example.webhook.office.com/webhookb2/replace-me
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
