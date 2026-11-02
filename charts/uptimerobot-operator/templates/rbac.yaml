@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "uptimerobot-operator.fullname" . }}
+  labels:
+    {{- include "uptimerobot-operator.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "uptimerobot-operator.fullname" . }}
+  labels:
+    {{- include "uptimerobot-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [uptimerobot.kuehnleon.github.io]
+    resources: [monitors, maintenancewindows, publicstatuspages]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [uptimerobot.kuehnleon.github.io]
+    resources: [monitors/status, maintenancewindows/status, publicstatuspages/status]
+    verbs: [get, update, patch]
+  - apiGroups: [uptimerobot.kuehnleon.github.io]
+    resources: [monitors/finalizers, maintenancewindows/finalizers, publicstatuspages/finalizers]
+    verbs: [update]
+  - apiGroups: ["", events.k8s.io]
+    resources: [events]
+    verbs: [create, patch]
+  # Referenced auth / password secrets, read on demand.
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get]
+  {{- if .Values.ingress }}
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch]
+  {{- end }}
+  {{- if .Values.traefik }}
+  - apiGroups: [traefik.io, traefik.containo.us]
+    resources: [ingressroutes]
+    verbs: [get, list, watch]
+  {{- end }}
+  {{- if or .Values.ingress .Values.traefik }}
+  - apiGroups: [networking.k8s.io, traefik.io, traefik.containo.us]
+    resources: [ingresses/finalizers, ingressroutes/finalizers]
+    verbs: [update]
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "uptimerobot-operator.fullname" . }}
+  labels:
+    {{- include "uptimerobot-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "uptimerobot-operator.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "uptimerobot-operator.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- if .Values.leaderElection }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "uptimerobot-operator.fullname" . }}-leader-election
+  labels:
+    {{- include "uptimerobot-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "uptimerobot-operator.fullname" . }}-leader-election
+  labels:
+    {{- include "uptimerobot-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "uptimerobot-operator.fullname" . }}-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "uptimerobot-operator.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
