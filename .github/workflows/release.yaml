@@ -6,6 +6,14 @@ on:
     tags: ["v*"]
   # Build only, to verify the image (e.g. Dependabot base image updates).
   pull_request:
+  # Tags the next version and releases it in the same run (tags pushed with GITHUB_TOKEN trigger no workflows).
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version to bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
   contents: read
@@ -16,7 +24,39 @@ env:
   PLATFORMS: linux/arm64
 
 jobs:
+  tag:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Require main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: version
+        name: Tag next version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          latest=$(git tag -l 'v*.*.*' --sort=-v:refname | head -1)
+          IFS=. read -r major minor patch <<< "${latest:-v0.0.0}"
+          major=${major#v}
+          case "$BUMP" in
+            major) version="$((major + 1)).0.0" ;;
+            minor) version="$major.$((minor + 1)).0" ;;
+            patch) version="$major.$minor.$((patch + 1))" ;;
+          esac
+          git tag "v$version"
+          git push origin "v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   image:
+    needs: tag
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -34,8 +74,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ needs.tag.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.tag.outputs.version }}
       - uses: docker/build-push-action@v7
         with:
           platforms: ${{ env.PLATFORMS }}
@@ -45,16 +85,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  chart:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: image
+  release:
+    needs: [tag, image]
+    if: ${{ !failure() && !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.tag.outputs.version) }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      TAGGED_VERSION: ${{ needs.tag.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
       - name: Package and push chart
         run: |
-          version=${GITHUB_REF_NAME#v}
+          version=${TAGGED_VERSION:-${GITHUB_REF_NAME#v}}
+          echo "VERSION=$version" >> "$GITHUB_ENV"
           helm package charts/uptimerobot-operator --version "$version" --app-version "$version"
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$GH_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
           helm push "uptimerobot-operator-$version.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
+      - name: Create GitHub release
+        run: gh release create "v$VERSION" "uptimerobot-operator-$VERSION.tgz" --generate-notes --verify-tag
