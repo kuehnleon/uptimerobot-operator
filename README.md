@@ -116,3 +116,11 @@ kubectl --context kind-uptimerobot apply -f hack/samples.yaml
 ```
 
 `--zap-log-level=debug` (Helm: `extraArgs`) logs every API request including the remaining rate limit.
+
+## Releasing
+
+Run the [Release workflow](../../actions/workflows/release.yaml). The version is derived from the [Conventional Commits](https://www.conventionalcommits.org) since the last release (`fix` → patch, `feat` and breaking changes → minor before 1.0.0), or can be chosen explicitly. It updates [CHANGELOG.md](CHANGELOG.md) via [git-cliff](https://git-cliff.org), tags the version, publishes image and chart and creates a GitHub release.
+
+## Contributing
+
+Pull requests are squash merged, so PR titles must follow [Conventional Commits](https://www.conventionalcommits.org), e.g. `feat(monitor): support regions` or `fix!: rename field`. They make up the changelog.
