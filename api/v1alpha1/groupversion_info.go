@@ -17,6 +17,7 @@ var (
 			&MaintenanceWindow{}, &MaintenanceWindowList{},
 			&PublicStatusPage{}, &PublicStatusPageList{},
 			&Integration{}, &IntegrationList{},
+			&MonitorGroup{}, &MonitorGroupList{},
 		)
 		metav1.AddToGroupVersion(s, GroupVersion)
 		return nil

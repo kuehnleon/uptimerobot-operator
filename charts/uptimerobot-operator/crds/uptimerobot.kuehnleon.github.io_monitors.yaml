@@ -163,8 +163,23 @@ spec:
                 minimum: 0
                 type: integer
               groupId:
+                description: ID of a monitor group in UptimeRobot.
                 format: int64
                 type: integer
+              groupRef:
+                description: MonitorGroup in the same namespace.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               httpMethod:
                 enum:
                 - HEAD
@@ -245,6 +260,8 @@ spec:
               rule: self.type != 'KEYWORD' || has(self.keyword)
             - message: port is required for PORT and UDP monitors
               rule: '!(self.type in [''PORT'', ''UDP'']) || has(self.port)'
+            - message: groupId and groupRef are mutually exclusive
+              rule: '!(has(self.groupId) && has(self.groupRef))'
           status:
             description: MonitorStatus defines the observed state of a Monitor.
             properties:
