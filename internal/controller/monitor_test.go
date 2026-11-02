@@ -127,7 +127,7 @@ func TestMonitorSync(t *testing.T) {
 		newObj: func() *v1alpha1.Monitor { return &v1alpha1.Monitor{} },
 		drift:  []string{"url", "interval"},
 		desired: func(ctx context.Context, m *v1alpha1.Monitor) (map[string]any, error) {
-			return monitorBody(ctx, secretGetter(c, m.Namespace), m)
+			return monitorBody(ctx, c, secretGetter(c, m.Namespace), m)
 		},
 	}
 	ctx := context.Background()

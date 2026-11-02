@@ -90,8 +90,14 @@ type HTTPAuth struct {
 	PasswordSecretRef corev1.SecretKeySelector `json:"passwordSecretRef"`
 }
 
+// +kubebuilder:validation:XValidation:rule="has(self.id) != has(self.integrationRef)",message="exactly one of id or integrationRef is required"
 type AlertContact struct {
-	ID int64 `json:"id"`
+	// ID of an alert contact or integration in UptimeRobot.
+	// +optional
+	ID int64 `json:"id,omitempty"`
+	// Integration in the same namespace.
+	// +optional
+	IntegrationRef *corev1.LocalObjectReference `json:"integrationRef,omitempty"`
 	// Minutes to wait before notifying (paid plans only).
 	// +optional
 	Threshold int32 `json:"threshold,omitempty"`

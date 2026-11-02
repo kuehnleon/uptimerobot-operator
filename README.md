@@ -1,8 +1,8 @@
 # uptimerobot-operator
 
-Kubernetes operator managing [UptimeRobot](https://uptimerobot.com) monitors, maintenance windows and public status pages, using the [UptimeRobot v3 API](https://uptimerobot.com/api/v3/).
+Kubernetes operator managing [UptimeRobot](https://uptimerobot.com) monitors, integrations, maintenance windows and public status pages, using the [UptimeRobot v3 API](https://uptimerobot.com/api/v3/).
 
-- `Monitor`, `MaintenanceWindow` and `PublicStatusPage` custom resources
+- `Monitor`, `Integration`, `MaintenanceWindow` and `PublicStatusPage` custom resources
 - Monitors for annotated `Ingress` and Traefik `IngressRoute` resources
 - Built for API rate limits: client-side rate limiting and one cached list request per resource type and sync interval, independent of the number of resources
 
@@ -49,7 +49,9 @@ spec:
     type: ALERT_NOT_EXISTS
     value: OK
   alertContacts:
-    - id: 1234567
+    - integrationRef:
+        name: team-slack # Integration in the same namespace
+    - id: 1234567 # or any alert contact by ID
   auth:
     type: HTTP_BASIC
     username: monitor
@@ -74,6 +76,30 @@ metadata:
 ```
 
 The URL defaults to the first host (`https` if TLS is configured) and can be overridden with `uptimerobot.kuehnleon.github.io/url`. The labels of the source resource are copied to the `Monitor`.
+
+### Integration
+
+Notification channels: `Slack`, `MSTeams`, `Webhook`, `Discord`, `Mattermost`, `GoogleChat`, `Pagerduty`, `Pushover`, `PushBullet`, `Splunk`, `Zapier`.
+
+```yaml
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: Integration
+metadata:
+  name: team-slack
+spec:
+  type: Slack
+  enableNotificationsFor: Down # UpAndDown (default), Down, Up, None
+  config:
+    customValue: "@here"
+  secretConfig:
+    webhookURL:
+      name: team-slack
+      key: webhook-url
+```
+
+Available types depend on the UptimeRobot plan (e.g. `Webhook` is not available on Solo), and some types validate their URL on creation.
+
+`config` and `secretConfig` hold the type specific fields of the [API](https://uptimerobot.com/api/v3/#post-/integrations), e.g. `webhookURL` (Slack, MSTeams, Discord, Mattermost), `urlToNotify` and `postValue` (Webhook) or `integrationKey` (Pagerduty).
 
 ### MaintenanceWindow
 

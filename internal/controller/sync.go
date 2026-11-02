@@ -97,7 +97,7 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 	body, err := s.desired(ctx, obj)
 	if err != nil {
-		return s.fail(ctx, obj, orig, err)
+		return s.fail(ctx, obj, orig, configError{err})
 	}
 	hash := s.ur.Hash(body)
 
@@ -158,7 +158,7 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	return ctrl.Result{RequeueAfter: s.interval}, s.Status().Patch(ctx, obj, client.MergeFrom(orig))
 }
 
-// fail records err in the Ready condition and schedules a retry with exponential backoff
+// fail records err in the Ready condition. Failed API calls are retried with exponential backoff
 // starting at the sync interval, to protect the API rate limit.
 func (s *syncer[T]) fail(ctx context.Context, obj, orig T, err error) (ctrl.Result, error) {
 	reason := failureReason(err)
@@ -168,8 +168,17 @@ func (s *syncer[T]) fail(ctx context.Context, obj, orig T, err error) (ctrl.Resu
 		return ctrl.Result{}, errors.Join(err, perr)
 	}
 	ctrl.LoggerFrom(ctx).Error(err, "sync failed")
+	if errors.As(err, &configError{}) {
+		// No API calls were made, so events (e.g. a referenced object becoming ready) may retry immediately.
+		return ctrl.Result{RequeueAfter: s.interval}, nil
+	}
 	return ctrl.Result{RequeueAfter: s.retries.failed(client.ObjectKeyFromObject(obj), obj.GetGeneration(), s.interval)}, nil
 }
+
+// configError is an error building the desired state, e.g. a missing secret or an unresolved reference.
+type configError struct{ error }
+
+func (e configError) Unwrap() error { return e.error }
 
 func setReady(obj object, status metav1.ConditionStatus, reason, message string) {
 	meta.SetStatusCondition(&obj.GetResourceStatus().Conditions, metav1.Condition{

@@ -13,13 +13,13 @@ metadata:
     {{- include "uptimerobot-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups: [uptimerobot.kuehnleon.github.io]
-    resources: [monitors, maintenancewindows, publicstatuspages]
+    resources: [monitors, maintenancewindows, publicstatuspages, integrations]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [uptimerobot.kuehnleon.github.io]
-    resources: [monitors/status, maintenancewindows/status, publicstatuspages/status]
+    resources: [monitors/status, maintenancewindows/status, publicstatuspages/status, integrations/status]
     verbs: [get, update, patch]
   - apiGroups: [uptimerobot.kuehnleon.github.io]
-    resources: [monitors/finalizers, maintenancewindows/finalizers, publicstatuspages/finalizers]
+    resources: [monitors/finalizers, maintenancewindows/finalizers, publicstatuspages/finalizers, integrations/finalizers]
     verbs: [update]
   - apiGroups: ["", events.k8s.io]
     resources: [events]
