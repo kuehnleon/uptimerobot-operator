@@ -18,6 +18,7 @@ const DefaultMonitorInterval = 300
 func setupMonitor(mgr ctrl.Manager, o Options) error {
 	r := &syncer[*v1alpha1.Monitor]{
 		Client:   mgr.GetClient(),
+		reader:   mgr.GetAPIReader(),
 		ur:       o.Client,
 		events:   mgr.GetEventRecorder("uptimerobot-operator"),
 		interval: o.SyncInterval,

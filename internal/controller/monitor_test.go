@@ -123,7 +123,7 @@ func TestMonitorSync(t *testing.T) {
 
 	ur := uptimerobot.New(srv.URL, "key", 6000, time.Hour)
 	r := &syncer[*v1alpha1.Monitor]{
-		Client: c, ur: ur, events: &events.FakeRecorder{}, interval: time.Minute, path: "/monitors",
+		Client: c, reader: c, ur: ur, events: &events.FakeRecorder{}, interval: time.Minute, path: "/monitors",
 		newObj: func() *v1alpha1.Monitor { return &v1alpha1.Monitor{} },
 		drift:  []string{"url", "interval"},
 		desired: func(ctx context.Context, m *v1alpha1.Monitor) (map[string]any, error) {
@@ -154,6 +154,17 @@ func TestMonitorSync(t *testing.T) {
 
 	reconcile()
 	expectCalls()
+
+	// A stale cache without the ID must not lead to a second create.
+	stale := m.DeepCopy()
+	stale.Status = v1alpha1.MonitorStatus{}
+	r.Client = fake.NewClientBuilder().WithScheme(scheme).WithObjects(stale, secret).WithStatusSubresource(stale).Build()
+	r.ur = uptimerobot.New(srv.URL, "key", 6000, time.Hour)
+	if _, err := r.Reconcile(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	expectCalls()
+	r.Client = c
 
 	m.Spec.Interval = 120
 	_ = c.Update(ctx, m)
