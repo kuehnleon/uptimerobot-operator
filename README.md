@@ -116,3 +116,9 @@ kubectl --context kind-uptimerobot apply -f hack/samples.yaml
 ```
 
 `--zap-log-level=debug` (Helm: `extraArgs`) logs every API request including the remaining rate limit.
+
+## Releasing
+
+Run the [Release workflow](../../actions/workflows/release.yaml) and choose `patch`, `minor` or `major`. It adds the release notes to [CHANGELOG.md](CHANGELOG.md), tags the version, publishes image and chart and creates a GitHub release.
+
+Release notes are generated from merged pull requests, grouped by label: `breaking-change`, `enhancement`, `bug`, `dependencies` (`ignore-for-release` excludes a PR).
