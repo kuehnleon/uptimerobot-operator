@@ -1,0 +1,50 @@
+image:
+  repository: ghcr.io/kuehnleon/uptimerobot-operator
+  # Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# UptimeRobot API key (account-specific "Main API key").
+apiKey:
+  # Name of an existing secret containing the key. Recommended over `value`.
+  existingSecret: ""
+  secretKey: api-key
+  # Plain value, creates a secret. Do not commit it.
+  value: ""
+
+# Interval in which resources are synced with UptimeRobot.
+syncInterval: 1m
+# Maximum API requests per minute. FREE: 10, PRO: 2 x monitor limit (max 5000).
+apiRateLimit: 10
+# Create monitors for annotated Ingresses / Traefik IngressRoutes.
+ingress: true
+traefik: true
+
+replicaCount: 1
+leaderElection: true
+extraArgs: []
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
