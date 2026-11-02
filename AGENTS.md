@@ -35,6 +35,7 @@ CI fails if generated files are out of date.
 - Status follows the Kubernetes API conventions: a single `Ready` condition (`setReady`, reasons in `sync.go`) plus events for remote changes and errors. Keep reasons CamelCase and stable, they are part of the API.
 - Secrets are read uncached via `secretGetter` (operator only has `get` on secrets). Never write secret values to status, events or logs.
 - Spec fields use Kubernetes naming; mapping to API field names happens in the per-kind `desired` functions.
+- Changes go to `main` via squash-merged pull requests with Conventional Commit titles (`feat`, `fix`, `docs`, `build(deps)`, `chore`, `!` for breaking changes); `CHANGELOG.md` and release notes are generated from them by git-cliff (`cliff.toml`). Never edit `CHANGELOG.md` manually.
 - Tests use the in-memory `fakeAPI` (`monitor_test.go`); assert on the API calls made.
 
 ## API references
