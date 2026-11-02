@@ -83,8 +83,7 @@ kind: MaintenanceWindow
 metadata:
   name: nightly
 spec:
-  interval: daily # once, daily, weekly, monthly
-  date: "2026-01-01"
+  interval: daily # once (requires date), daily, weekly or monthly (require days)
   time: "03:00:00"
   duration: 30 # minutes
   monitorSelector: {} # all Monitors in the namespace

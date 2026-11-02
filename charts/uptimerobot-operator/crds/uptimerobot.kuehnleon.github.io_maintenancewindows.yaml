@@ -65,7 +65,7 @@ spec:
             description: MaintenanceWindowSpec defines the desired state of a MaintenanceWindow.
             properties:
               date:
-                description: Start date (YYYY-MM-DD).
+                description: Date (YYYY-MM-DD) of a one-time window.
                 pattern: ^\d{4}-\d{2}-\d{2}$
                 type: string
               days:
@@ -74,6 +74,7 @@ spec:
                 items:
                   format: int32
                   type: integer
+                minItems: 1
                 type: array
               duration:
                 description: Duration in minutes.
@@ -144,11 +145,17 @@ spec:
                 pattern: ^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$
                 type: string
             required:
-            - date
             - duration
             - interval
             - time
             type: object
+            x-kubernetes-validations:
+            - message: date is required for once and not allowed for recurring windows
+              rule: 'self.interval == ''once'' ? has(self.date) : !has(self.date)'
+            - message: days are required for weekly and monthly windows and not allowed
+                otherwise
+              rule: 'self.interval in [''weekly'', ''monthly''] ? has(self.days) :
+                !has(self.days)'
           status:
             description: ResourceStatus is the status shared by all UptimeRobot resources.
             properties:
