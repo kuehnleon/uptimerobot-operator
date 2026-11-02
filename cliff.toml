@@ -37,7 +37,8 @@ commit_parsers = [
   { message = "^perf", group = "<!-- 3 -->Performance" },
   { message = "^docs", group = "<!-- 4 -->Documentation" },
   { message = "^(build|chore)\\(deps\\)", group = "<!-- 5 -->Dependencies" },
-  { message = ".*", group = "<!-- 6 -->Other changes" },
+  { message = "^ci", group = "<!-- 6 -->CI" },
+  { message = ".*", group = "<!-- 7 -->Other changes" },
 ]
 
 [bump]
