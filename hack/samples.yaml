@@ -8,6 +8,20 @@ metadata:
 spec:
   type: HTTP
   url: https://example.com
+  alertContacts:
+    - integrationRef:
+        name: sample
+---
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: Integration
+metadata:
+  name: sample
+spec:
+  type: MSTeams
+  enableNotificationsFor: Down
+  config:
+    # Placeholder, replace with a real incoming webhook URL.
+    webhookURL: https://example.webhook.office.com/webhookb2/replace-me
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

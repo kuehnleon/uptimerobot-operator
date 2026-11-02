@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +33,17 @@ func secretGetter(r client.Reader, namespace string) secretFunc {
 		}
 		return string(v), nil
 	}
+}
+
+// refID returns the UptimeRobot ID of the named object in namespace.
+func refID(ctx context.Context, c client.Reader, namespace, name string, obj object) (int64, error) {
+	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, obj); err != nil {
+		return 0, err
+	}
+	if id := obj.GetResourceStatus().ID; id != 0 {
+		return id, nil
+	}
+	return 0, fmt.Errorf("%s %s is not synced yet", reflect.TypeOf(obj).Elem().Name(), name)
 }
 
 // monitorIDs returns the sorted UptimeRobot IDs of the Monitors in namespace matching selector.

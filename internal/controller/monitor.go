@@ -7,6 +7,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/kuehnleon/uptimerobot-operator/api/v1alpha1"
@@ -27,7 +28,7 @@ func setupMonitor(mgr ctrl.Manager, o Options) error {
 		drift: []string{"friendlyName", "url", "interval", "timeout", "port", "gracePeriod",
 			"keywordType", "keywordValue", "httpMethodType", "checkSSLErrors", "followRedirections"},
 		desired: func(ctx context.Context, m *v1alpha1.Monitor) (map[string]any, error) {
-			return monitorBody(ctx, secretGetter(mgr.GetAPIReader(), m.Namespace), m)
+			return monitorBody(ctx, mgr.GetClient(), secretGetter(mgr.GetAPIReader(), m.Namespace), m)
 		},
 		after: func(ctx context.Context, m *v1alpha1.Monitor, remote uptimerobot.Object) (uptimerobot.Object, error) {
 			action, state := "", remote.String("status")
@@ -53,10 +54,11 @@ func setupMonitor(mgr ctrl.Manager, o Options) error {
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Monitor{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&v1alpha1.Integration{}, enqueueAll(mgr.GetClient(), func() client.ObjectList { return &v1alpha1.MonitorList{} })).
 		Complete(r)
 }
 
-func monitorBody(ctx context.Context, secret secretFunc, m *v1alpha1.Monitor) (map[string]any, error) {
+func monitorBody(ctx context.Context, c client.Reader, secret secretFunc, m *v1alpha1.Monitor) (map[string]any, error) {
 	s := m.Spec
 	b := map[string]any{
 		"type":         s.Type,
@@ -104,8 +106,15 @@ func monitorBody(ctx context.Context, secret secretFunc, m *v1alpha1.Monitor) (m
 	}
 	if len(s.AlertContacts) > 0 {
 		contacts := make([]map[string]any, len(s.AlertContacts))
-		for i, c := range s.AlertContacts {
-			contacts[i] = map[string]any{"alertContactId": c.ID, "threshold": c.Threshold, "recurrence": c.Recurrence}
+		for i, a := range s.AlertContacts {
+			id := a.ID
+			if a.IntegrationRef != nil {
+				var err error
+				if id, err = refID(ctx, c, m.Namespace, a.IntegrationRef.Name, &v1alpha1.Integration{}); err != nil {
+					return nil, err
+				}
+			}
+			contacts[i] = map[string]any{"alertContactId": id, "threshold": a.Threshold, "recurrence": a.Recurrence}
 		}
 		b["assignedAlertContacts"] = contacts
 	}

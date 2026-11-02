@@ -68,8 +68,23 @@ spec:
                 items:
                   properties:
                     id:
+                      description: ID of an alert contact or integration in UptimeRobot.
                       format: int64
                       type: integer
+                    integrationRef:
+                      description: Integration in the same namespace.
+                      properties:
+                        name:
+                          default: ""
+                          description: |-
+                            Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
                     recurrence:
                       description: Repeat notifications every X minutes (paid plans
                         only).
@@ -79,9 +94,10 @@ spec:
                       description: Minutes to wait before notifying (paid plans only).
                       format: int32
                       type: integer
-                  required:
-                  - id
                   type: object
+                  x-kubernetes-validations:
+                  - message: exactly one of id or integrationRef is required
+                    rule: has(self.id) != has(self.integrationRef)
                 type: array
               auth:
                 properties:
