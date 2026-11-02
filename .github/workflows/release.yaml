@@ -11,10 +11,10 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: Version to bump
+        description: Version bump, auto derives it from conventional commits
         type: choice
-        options: [patch, minor, major]
-        default: patch
+        options: [auto, patch, minor, major]
+        default: auto
 
 permissions:
   contents: read
@@ -31,46 +31,28 @@ jobs:
     permissions:
       contents: write
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.changelog.outputs.version }}
     steps:
       - name: Require main branch
         run: test "$GITHUB_REF" = refs/heads/main
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - id: version
-        name: Determine next version
+      - id: changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: --bump ${{ inputs.bump != 'auto' && inputs.bump || '' }}
         env:
-          BUMP: ${{ inputs.bump }}
-        run: |
-          latest=$(git tag -l 'v*.*.*' --sort=-v:refname | head -1)
-          IFS=. read -r major minor patch <<< "${latest:-v0.0.0}"
-          major=${major#v}
-          case "$BUMP" in
-            major) version="$((major + 1)).0.0" ;;
-            minor) version="$major.$((minor + 1)).0" ;;
-            patch) version="$major.$minor.$((patch + 1))" ;;
-          esac
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Update changelog and tag
+          OUTPUT: CHANGELOG.md
+      - name: Commit changelog and tag
         env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.changelog.outputs.version }}
         run: |
-          notes=$(gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
-            -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -q .body | sed -e "/^## What's Changed/d" -e 's/^### /#### /' -e 's/^## /### /')
-          {
-            head -n 2 CHANGELOG.md
-            printf '## [v%s](https://github.com/%s/releases/tag/v%s) - %s\n\n%s\n\n' \
-              "$VERSION" "$GITHUB_REPOSITORY" "$VERSION" "$(date -u +%F)" "$notes"
-            tail -n +3 CHANGELOG.md
-          } > CHANGELOG.tmp
-          mv CHANGELOG.tmp CHANGELOG.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "Release v$VERSION"
-          git tag "v$VERSION"
-          git push --atomic origin HEAD:main "v$VERSION"
+          git commit -am "chore(release): $VERSION"
+          git tag "$VERSION"
+          git push --atomic origin HEAD:main "$VERSION"
 
   image:
     needs: tag
@@ -79,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.tag.outputs.version && format('v{0}', needs.tag.outputs.version) || '' }}
+          ref: ${{ needs.tag.outputs.version }}
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
@@ -113,19 +95,24 @@ jobs:
       contents: write
       packages: write
     env:
-      TAGGED_VERSION: ${{ needs.tag.outputs.version }}
+      TAG: ${{ needs.tag.outputs.version || github.ref_name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.tag.outputs.version && format('v{0}', needs.tag.outputs.version) || '' }}
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
       - uses: azure/setup-helm@v5
       - name: Package and push chart
         run: |
-          version=${TAGGED_VERSION:-${GITHUB_REF_NAME#v}}
-          echo "VERSION=$version" >> "$GITHUB_ENV"
+          version=${TAG#v}
           helm package charts/uptimerobot-operator --version "$version" --app-version "$version"
           echo "$GH_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
           helm push "uptimerobot-operator-$version.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
+      - uses: orhun/git-cliff-action@v4
+        with:
+          args: --current --strip all
+        env:
+          OUTPUT: RELEASE_NOTES.md
       - name: Create GitHub release
-        run: gh release create "v$VERSION" "uptimerobot-operator-$VERSION.tgz" --generate-notes --verify-tag
+        run: gh release create "$TAG" "uptimerobot-operator-${TAG#v}.tgz" --notes-file RELEASE_NOTES.md --verify-tag

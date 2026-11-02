@@ -119,6 +119,8 @@ kubectl --context kind-uptimerobot apply -f hack/samples.yaml
 
 ## Releasing
 
-Run the [Release workflow](../../actions/workflows/release.yaml) and choose `patch`, `minor` or `major`. It adds the release notes to [CHANGELOG.md](CHANGELOG.md), tags the version, publishes image and chart and creates a GitHub release.
+Run the [Release workflow](../../actions/workflows/release.yaml). The version is derived from the [Conventional Commits](https://www.conventionalcommits.org) since the last release (`fix` → patch, `feat` and breaking changes → minor before 1.0.0), or can be chosen explicitly. It updates [CHANGELOG.md](CHANGELOG.md) via [git-cliff](https://git-cliff.org), tags the version, publishes image and chart and creates a GitHub release.
 
-Release notes are generated from merged pull requests, grouped by label: `breaking-change`, `enhancement`, `bug`, `dependencies` (`ignore-for-release` excludes a PR).
+## Contributing
+
+Pull requests are squash merged, so PR titles must follow [Conventional Commits](https://www.conventionalcommits.org), e.g. `feat(monitor): support regions` or `fix!: rename field`. They make up the changelog.
