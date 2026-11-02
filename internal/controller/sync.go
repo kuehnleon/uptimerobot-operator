@@ -35,6 +35,8 @@ type object interface {
 // syncer reconciles a custom resource with its UptimeRobot counterpart at path.
 type syncer[T object] struct {
 	client.Client
+	// reader reads uncached from the API server.
+	reader   client.Reader
 	ur       *uptimerobot.Client
 	events   events.EventRecorder
 	interval time.Duration
@@ -117,6 +119,14 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 	}
 	if err == nil && remote == nil {
+		// The cache may not yet contain the ID stored by the previous reconcile; never create twice.
+		latest := s.newObj()
+		if err := s.reader.Get(ctx, client.ObjectKeyFromObject(obj), latest); err != nil {
+			return s.fail(ctx, obj, orig, err)
+		}
+		if latest.GetResourceStatus().ID != st.ID {
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
 		create := maps.Clone(body)
 		for _, k := range s.createOmit {
 			delete(create, k)
