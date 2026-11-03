@@ -17,6 +17,8 @@ helm install uptimerobot-operator oci://ghcr.io/kuehnleon/charts/uptimerobot-ope
   -n uptimerobot --set apiKey.existingSecret=uptimerobot
 ```
 
+Published container images support `linux/amd64` and `linux/arm64`.
+
 Helm does not upgrade CRDs. Apply them manually on upgrades: `kubectl apply -f charts/uptimerobot-operator/crds`.
 
 ### Rate limits
