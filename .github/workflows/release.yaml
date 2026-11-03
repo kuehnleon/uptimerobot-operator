@@ -1,8 +1,7 @@
 name: Release
 
 # Updates CHANGELOG.md and the chart version, commits and tags the next version.
-# Pushes use RELEASE_TOKEN (a PAT of an admin) to bypass the branch ruleset and to
-# trigger the Build workflow for the tag.
+# Pushes use the Forgekeeper GitHub App token to trigger the Build workflow for the tag.
 on:
   workflow_dispatch:
     inputs:
@@ -24,9 +23,17 @@ jobs:
     steps:
       - name: Require main branch
         run: test "$GITHUB_REF" = refs/heads/main
+      - id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
       - id: changelog
         uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4
