@@ -1,50 +1,78 @@
+# image -- Image configuration for the operator.
 image:
+  # image.repository -- Container image repository.
   repository: ghcr.io/kuehnleon/uptimerobot-operator
-  # Defaults to the chart appVersion.
+  # image.tag -- Image tag. Defaults to the chart appVersion.
   tag: ""
+  # image.pullPolicy -- Image pull policy.
   pullPolicy: IfNotPresent
 
+# imagePullSecrets -- Secrets to use when pulling the operator image.
 imagePullSecrets: []
 
-# UptimeRobot API key (account-specific "Main API key").
+# apiKey -- UptimeRobot API key (account-specific "Main API key"). Use an existing Secret where possible.
 apiKey:
-  # Name of an existing secret containing the key. Recommended over `value`.
+  # apiKey.existingSecret -- Name of an existing Secret containing the API key. Recommended over `value`.
   existingSecret: ""
+  # apiKey.secretKey -- Key within the existing Secret, or key to create when using `value`.
   secretKey: api-key
-  # Plain value, creates a secret. Do not commit it.
+  # apiKey.value -- Plain API key value. Creates a Secret; avoid putting credentials in Helm values or source control.
   value: ""
 
-# Interval in which resources are synced with UptimeRobot.
+# syncInterval -- Interval in which resources are synced with UptimeRobot.
 syncInterval: 1m
-# Maximum API requests per minute. FREE: 10, PRO: 2 x monitor limit (max 5000).
+# apiRateLimit -- Maximum UptimeRobot API requests per minute. FREE: 10; PRO: 2 x monitor limit (max 5000).
 apiRateLimit: 10
-# Create monitors for annotated Ingresses / Traefik IngressRoutes.
+# ingress -- Create Monitors for annotated Kubernetes Ingress resources.
 ingress: true
+# traefik -- Create Monitors for annotated Traefik IngressRoute resources.
 traefik: true
 
+# replicaCount -- Number of operator replicas. Multiple replicas require leader election.
 replicaCount: 1
+# leaderElection -- Enable leader election when running multiple replicas.
 leaderElection: true
+# extraArgs -- Additional command-line arguments passed to the operator.
 extraArgs: []
 
+# resources -- CPU and memory requests and limits for the operator container.
 resources:
+  # resources.requests -- Minimum CPU and memory resources requested by the container.
   requests:
+    # resources.requests.cpu -- CPU requested by the container.
     cpu: 10m
+    # resources.requests.memory -- Memory requested by the container.
     memory: 64Mi
+  # resources.limits -- Maximum resources allowed for the container.
   limits:
+    # resources.limits.memory -- Maximum memory allowed for the container.
     memory: 128Mi
 
+# podSecurityContext -- Pod-level security context.
 podSecurityContext:
+  # podSecurityContext.runAsNonRoot -- Run the pod as a non-root user.
   runAsNonRoot: true
+  # podSecurityContext.seccompProfile -- Seccomp profile for the pod.
   seccompProfile:
+    # podSecurityContext.seccompProfile.type -- Seccomp profile type.
     type: RuntimeDefault
 
+# securityContext -- Container-level security context.
 securityContext:
+  # securityContext.allowPrivilegeEscalation -- Disallow privilege escalation.
   allowPrivilegeEscalation: false
+  # securityContext.readOnlyRootFilesystem -- Mount the container root filesystem as read-only.
   readOnlyRootFilesystem: true
+  # securityContext.capabilities -- Linux capabilities configuration.
   capabilities:
+    # securityContext.capabilities.drop -- Linux capabilities to drop from the container.
     drop: [ALL]
 
+# podAnnotations -- Annotations to add to the operator pod.
 podAnnotations: {}
+# nodeSelector -- Node labels used to select nodes for the operator pod.
 nodeSelector: {}
+# tolerations -- Tolerations applied to the operator pod.
 tolerations: []
+# affinity -- Affinity rules applied to the operator pod.
 affinity: {}

@@ -17,7 +17,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Check generated files
-        run: make generate && git diff --exit-code
+        run: make generate && make helm-docs && git diff --exit-code
       - run: make test
       - uses: golangci/golangci-lint-action@v9
       - uses: azure/setup-helm@v5

@@ -1,0 +1,7 @@
+uptimerobot-operator is installed in namespace {{ .Release.Namespace }}.
+
+List managed resources with:
+  kubectl get uptimerobot
+
+Chart documentation and configuration:
+  https://github.com/kuehnleon/uptimerobot-operator/tree/main/charts/uptimerobot-operator
