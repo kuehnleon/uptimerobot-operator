@@ -2,7 +2,36 @@
 
 # Changelog
 
+## [v0.2.0](https://github.com/kuehnleon/uptimerobot-operator/releases/tag/v0.2.0) - 2026-11-03
+
+### Features
+
+- Add Integration CRD ([#8](https://github.com/kuehnleon/uptimerobot-operator/pull/8))
+- Add MonitorGroup CRD ([#9](https://github.com/kuehnleon/uptimerobot-operator/pull/9))
+
+### Fixes
+
+- Prevent duplicate remote objects on stale cache reads ([#6](https://github.com/kuehnleon/uptimerobot-operator/pull/6))
+- **maintenancewindow:** Only send date for one-time windows ([#7](https://github.com/kuehnleon/uptimerobot-operator/pull/7))
+
+### Documentation
+
+- **helm:** Document chart configuration and lifecycle ([#12](https://github.com/kuehnleon/uptimerobot-operator/pull/12))
+
+### CI
+
+- Add artifacts to release notes and a CI changelog section ([#5](https://github.com/kuehnleon/uptimerobot-operator/pull/5))
+
+### Other changes
+
+- **ci:** Pin GitHub Actions to immutable SHAs ([#10](https://github.com/kuehnleon/uptimerobot-operator/pull/10))
+- **image:** Publish amd64 and arm64 images ([#11](https://github.com/kuehnleon/uptimerobot-operator/pull/11))
 ## [v0.1.0](https://github.com/kuehnleon/uptimerobot-operator/releases/tag/v0.1.0) - 2026-11-02
+
+### CI
+
+- Release via workflow dispatch with changelog from conventional commits ([#3](https://github.com/kuehnleon/uptimerobot-operator/pull/3))
+- Push releases with RELEASE_TOKEN ([#4](https://github.com/kuehnleon/uptimerobot-operator/pull/4))
 
 ### Other changes
 
@@ -14,5 +43,3 @@
 - Run workflows on main
 - Bump the k8s group with 3 updates ([#2](https://github.com/kuehnleon/uptimerobot-operator/pull/2))
 - Bump golang from 1.26 to 1.27 ([#1](https://github.com/kuehnleon/uptimerobot-operator/pull/1))
-- Release via workflow dispatch with changelog from conventional commits ([#3](https://github.com/kuehnleon/uptimerobot-operator/pull/3))
-- Push releases with RELEASE_TOKEN ([#4](https://github.com/kuehnleon/uptimerobot-operator/pull/4))
