@@ -1,9 +1,15 @@
 apiVersion: v2
 name: uptimerobot-operator
-description: Kubernetes operator managing UptimeRobot monitors, maintenance windows and status pages
+description: Kubernetes operator for managing UptimeRobot monitors, groups, integrations, maintenance windows, and public status pages
 type: application
 version: 0.1.0
 appVersion: 0.1.0
+keywords:
+  - kubernetes
+  - operator
+  - uptimerobot
+  - monitoring
+icon: https://raw.githubusercontent.com/kuehnleon/uptimerobot-operator/main/charts/uptimerobot-operator/icon.svg
 home: https://github.com/kuehnleon/uptimerobot-operator
 sources:
   - https://github.com/kuehnleon/uptimerobot-operator

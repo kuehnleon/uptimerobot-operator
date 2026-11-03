@@ -1,7 +1,7 @@
 IMG ?= ghcr.io/kuehnleon/uptimerobot-operator:dev
 CHART := charts/uptimerobot-operator
 
-.PHONY: all generate test build run docker-build helm-lint kind
+.PHONY: all generate test build run docker-build helm-lint helm-docs kind
 
 all: generate test build
 
@@ -23,7 +23,11 @@ docker-build:
 	docker buildx build --platform linux/arm64 -t $(IMG) --load .
 
 helm-lint:
-	helm lint $(CHART)
+	helm lint $(CHART) --set apiKey.value=lint-only
+	helm template test $(CHART) --namespace uptimerobot --set apiKey.existingSecret=uptimerobot --include-crds >/dev/null
+
+helm-docs:
+	go run github.com/norwoodj/helm-docs/cmd/helm-docs@v1.14.2 --chart-search-root charts --documentation-strict-mode --skip-version-footer
 
 KIND_CLUSTER ?= uptimerobot
 KIND_CONTEXT := kind-$(KIND_CLUSTER)

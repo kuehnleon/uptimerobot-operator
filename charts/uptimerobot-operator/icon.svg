@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="UptimeRobot Operator">
+  <rect width="128" height="128" rx="28" fill="#14213d"/>
+  <path d="M18 67h20l12-27 19 50 13-31 9 8h19" fill="none" stroke="#55d6be" stroke-linecap="round" stroke-linejoin="round" stroke-width="8"/>
+  <circle cx="101" cy="67" r="7" fill="#fca311"/>
+</svg>
