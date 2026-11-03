@@ -24,12 +24,12 @@ jobs:
     steps:
       - name: Require main branch
         run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
           fetch-depth: 0
       - id: changelog
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4
         with:
           args: --bump ${{ inputs.bump != 'auto' && inputs.bump || '' }}
         env:
