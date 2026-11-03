@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible problem with the operator or chart.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not include API keys, credentials, or sensitive monitor URLs. For security vulnerabilities, use
+        [private vulnerability reporting](https://github.com/kuehnleon/uptimerobot-operator/security/advisories/new).
+  - type: input
+    id: operator-version
+    attributes:
+      label: Operator version
+      description: For example, the image tag or Helm chart version.
+    validations:
+      required: true
+  - type: input
+    id: kubernetes-version
+    attributes:
+      label: Kubernetes version
+      placeholder: "For example, v1.36.0"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include relevant redacted logs or status conditions.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: Provide a minimal sanitized manifest or sequence of commands.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
