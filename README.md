@@ -163,7 +163,7 @@ kubectl --context kind-uptimerobot apply -f hack/samples.yaml
 
 Run the [Release workflow](../../actions/workflows/release.yaml). The version is derived from the [Conventional Commits](https://www.conventionalcommits.org) since the last release (`fix` → patch, `feat` and breaking changes → minor before 1.0.0), or can be chosen explicitly. It updates [CHANGELOG.md](CHANGELOG.md) via [git-cliff](https://git-cliff.org) and the chart version, then commits and tags the version. The tag triggers the Build workflow, which publishes image and chart and creates a GitHub release.
 
-The Release workflow requires the repository secret `RELEASE_TOKEN`: a fine-grained personal access token of an admin (to bypass the branch ruleset) with *Contents: read and write* on this repository.
+The Release workflow uses the [kuehnleon-forgekeeper GitHub App](https://github.com/settings/apps/kuehnleon-forgekeeper). Install it on this repository with *Contents: read and write*, add it as a bypass actor to the `main` branch ruleset, and configure the repository variable `RELEASE_APP_ID` and secret `RELEASE_APP_PRIVATE_KEY`. The workflow mints a short-lived token scoped to this repository.
 
 ## Contributing
 
