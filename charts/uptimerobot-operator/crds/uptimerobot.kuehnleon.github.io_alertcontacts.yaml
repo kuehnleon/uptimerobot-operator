@@ -58,6 +58,14 @@ spec:
             description: AlertContactSpec defines a personal email or mobile push
               alert contact.
             properties:
+              deletionPolicy:
+                default: Delete
+                description: What to do with the UptimeRobot object when this resource
+                  is deleted. Defaults to Delete.
+                enum:
+                - Delete
+                - Orphan
+                type: string
               deviceName:
                 description: Device name for mobile push contacts.
                 type: string

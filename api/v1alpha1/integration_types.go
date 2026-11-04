@@ -8,6 +8,7 @@ import (
 
 // IntegrationSpec defines the desired state of an Integration.
 type IntegrationSpec struct {
+	ResourcePolicySpec `json:",inline"`
 	// +kubebuilder:validation:Enum=Slack;MSTeams;Webhook;Discord;Mattermost;GoogleChat;Pagerduty;Pushover;PushBullet;Splunk;Zapier
 	Type string `json:"type"`
 	// Defaults to the resource name.
@@ -48,6 +49,7 @@ type Integration struct {
 }
 
 func (i *Integration) GetResourceStatus() *ResourceStatus { return &i.Status }
+func (i *Integration) GetDeletionPolicy() string          { return i.Spec.DeletionPolicy }
 
 // +kubebuilder:object:root=true
 type IntegrationList struct {

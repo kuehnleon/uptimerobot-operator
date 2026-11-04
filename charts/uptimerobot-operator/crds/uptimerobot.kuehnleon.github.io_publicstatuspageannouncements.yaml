@@ -58,6 +58,14 @@ spec:
               content:
                 maxLength: 2000
                 type: string
+              deletionPolicy:
+                default: Delete
+                description: What to do with the UptimeRobot object when this resource
+                  is deleted. Defaults to Delete.
+                enum:
+                - Delete
+                - Orphan
+                type: string
               endDate:
                 format: date-time
                 type: string

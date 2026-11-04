@@ -62,6 +62,14 @@ spec:
             properties:
               customDomain:
                 type: string
+              deletionPolicy:
+                default: Delete
+                description: What to do with the UptimeRobot object when this resource
+                  is deleted. Defaults to Delete.
+                enum:
+                - Delete
+                - Orphan
+                type: string
               friendlyName:
                 description: Defaults to the resource name.
                 type: string

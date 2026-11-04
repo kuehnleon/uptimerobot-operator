@@ -9,6 +9,7 @@ import (
 // +kubebuilder:validation:XValidation:rule="(self.type == 'Email' && has(self.value) && !has(self.pushTokenSecretRef)) || (self.type in ['MobileAppIOS', 'MobileAppAndroid'] && !has(self.value) && has(self.pushTokenSecretRef))",message="Email requires value; mobile push requires pushTokenSecretRef"
 // +kubebuilder:validation:XValidation:rule="self.type == oldSelf.type && has(self.value) == has(oldSelf.value) && (!has(self.value) || self.value == oldSelf.value) && has(self.pushTokenSecretRef) == has(oldSelf.pushTokenSecretRef) && (!has(self.pushTokenSecretRef) || self.pushTokenSecretRef == oldSelf.pushTokenSecretRef) && has(self.deviceName) == has(oldSelf.deviceName) && (!has(self.deviceName) || self.deviceName == oldSelf.deviceName)",message="type, value, pushTokenSecretRef and deviceName are immutable; create a new AlertContact instead"
 type AlertContactSpec struct {
+	ResourcePolicySpec `json:",inline"`
 	// +kubebuilder:validation:Enum=Email;MobileAppIOS;MobileAppAndroid
 	Type string `json:"type"`
 	// Defaults to the resource name.
@@ -52,6 +53,7 @@ type AlertContact struct {
 }
 
 func (a *AlertContact) GetResourceStatus() *ResourceStatus { return &a.Status }
+func (a *AlertContact) GetDeletionPolicy() string          { return a.Spec.DeletionPolicy }
 
 // +kubebuilder:object:root=true
 type AlertContactList struct {

@@ -6,6 +6,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +kubebuilder:validation:XValidation:rule="self.interval == 'once' ? has(self.date) : !has(self.date)",message="date is required for once and not allowed for recurring windows"
 // +kubebuilder:validation:XValidation:rule="self.interval in ['weekly', 'monthly'] ? has(self.days) : !has(self.days)",message="days are required for weekly and monthly windows and not allowed otherwise"
 type MaintenanceWindowSpec struct {
+	ResourcePolicySpec `json:",inline"`
 	// Defaults to the resource name.
 	// +optional
 	FriendlyName string `json:"friendlyName,omitempty"`
@@ -52,6 +53,7 @@ type MaintenanceWindow struct {
 }
 
 func (m *MaintenanceWindow) GetResourceStatus() *ResourceStatus { return &m.Status }
+func (m *MaintenanceWindow) GetDeletionPolicy() string          { return m.Spec.DeletionPolicy }
 
 // +kubebuilder:object:root=true
 type MaintenanceWindowList struct {

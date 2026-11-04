@@ -4,6 +4,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // MonitorGroupSpec defines the desired state of a MonitorGroup.
 type MonitorGroupSpec struct {
+	ResourcePolicySpec `json:",inline"`
 	// Defaults to the resource name.
 	// +optional
 	FriendlyName string `json:"friendlyName,omitempty"`
@@ -26,6 +27,7 @@ type MonitorGroup struct {
 }
 
 func (g *MonitorGroup) GetResourceStatus() *ResourceStatus { return &g.Status }
+func (g *MonitorGroup) GetDeletionPolicy() string          { return g.Spec.DeletionPolicy }
 
 // +kubebuilder:object:root=true
 type MonitorGroupList struct {

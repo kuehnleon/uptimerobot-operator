@@ -164,6 +164,14 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              deletionPolicy:
+                default: Delete
+                description: What to do with the UptimeRobot object when this resource
+                  is deleted. Defaults to Delete.
+                enum:
+                - Delete
+                - Orphan
+                type: string
               domainExpirationReminder:
                 type: boolean
               followRedirections:
