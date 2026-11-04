@@ -41,14 +41,22 @@ type syncer[T object] struct {
 	events   events.EventRecorder
 	interval time.Duration
 
-	path   string
-	newObj func() T
+	path string
+	// pathFor resolves a resource-specific API path for nested resources.
+	pathFor func(ctx context.Context, obj T) (string, error)
+	newObj  func() T
 	// desired returns the API request body.
 	desired func(ctx context.Context, obj T) (map[string]any, error)
 	// drift lists body keys compared against the remote object to detect changes made outside the cluster.
 	drift []string
+	// hashOmit lists body keys that cannot be updated after creation and must not trigger updates when changed.
+	hashOmit []string
 	// createOmit lists body keys not accepted on create; they are applied by a follow-up update.
 	createOmit []string
+	// createUpdateRequired lists createOmit keys that must be applied when omitted from the create response.
+	createUpdateRequired []string
+	// updateOmit lists body keys not accepted on update.
+	updateOmit []string
 	// after is called with the up-to-date remote object and may return a modified one.
 	after func(ctx context.Context, obj T, remote uptimerobot.Object) (uptimerobot.Object, error)
 	// observe copies kind specific fields of the remote object into the status.
@@ -72,7 +80,14 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, nil
 		}
 		if st.ID != 0 {
-			if err := s.ur.Delete(ctx, s.path, st.ID); err != nil {
+			path := s.path
+			if s.pathFor != nil {
+				var err error
+				if path, err = s.pathFor(ctx, obj); err != nil {
+					return s.fail(ctx, obj, obj.DeepCopyObject().(T), configError{err})
+				}
+			}
+			if err := s.ur.Delete(ctx, path, st.ID); err != nil {
 				return s.fail(ctx, obj, obj.DeepCopyObject().(T), err)
 			}
 			s.events.Eventf(obj, nil, corev1.EventTypeNormal, "Deleted", "Delete", "Deleted from UptimeRobot (ID %d)", st.ID)
@@ -94,17 +109,28 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 		orig = obj.DeepCopyObject().(T)
 	}
+	path := s.path
+	var err error
+	if s.pathFor != nil {
+		if path, err = s.pathFor(ctx, obj); err != nil {
+			return s.fail(ctx, obj, orig, configError{err})
+		}
+	}
 
 	body, err := s.desired(ctx, obj)
 	if err != nil {
 		return s.fail(ctx, obj, orig, configError{err})
 	}
-	hash := s.ur.Hash(body)
+	hashBody := maps.Clone(body)
+	for _, k := range s.hashOmit {
+		delete(hashBody, k)
+	}
+	hash := s.ur.Hash(hashBody)
 
 	var remote uptimerobot.Object
 	var action string
 	if st.ID != 0 {
-		if remote, err = s.ur.Get(ctx, s.path, st.ID); err != nil {
+		if remote, err = s.ur.Get(ctx, path, st.ID); err != nil {
 			return s.fail(ctx, obj, orig, err)
 		}
 		if remote == nil {
@@ -112,7 +138,11 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 	}
 	if remote != nil && (st.Hash != hash || drifted(s.drift, body, remote)) {
-		remote, err = s.ur.Update(ctx, s.path, st.ID, body)
+		update := maps.Clone(body)
+		for _, k := range s.updateOmit {
+			delete(update, k)
+		}
+		remote, err = s.ur.Update(ctx, path, st.ID, update)
 		action = "Updated"
 		if uptimerobot.IsNotFound(err) {
 			remote, err = nil, nil
@@ -131,10 +161,22 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		for _, k := range s.createOmit {
 			delete(create, k)
 		}
-		remote, err = s.ur.Create(ctx, s.path, create)
+		remote, err = s.ur.Create(ctx, path, create)
 		action = "Created"
-		if err == nil && drifted(s.createOmit, body, remote) {
-			remote, err = s.ur.Update(ctx, s.path, remote.ID(), body)
+		if err == nil {
+			// Persist the remote ID before follow-up updates/actions so a failure cannot create a duplicate.
+			st.ID = remote.ID()
+			if err := s.Status().Patch(ctx, obj, client.MergeFrom(orig)); err != nil {
+				return ctrl.Result{}, err
+			}
+			orig = obj.DeepCopyObject().(T)
+		}
+		if err == nil && (drifted(s.createOmit, body, remote) || missingDrift(s.createUpdateRequired, body, remote)) {
+			update := maps.Clone(body)
+			for _, k := range s.updateOmit {
+				delete(update, k)
+			}
+			remote, err = s.ur.Update(ctx, path, remote.ID(), update)
 		}
 	}
 	if err == nil && s.after != nil {
@@ -156,6 +198,13 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		s.observe(obj, remote)
 	}
 	return ctrl.Result{RequeueAfter: s.interval}, s.Status().Patch(ctx, obj, client.MergeFrom(orig))
+}
+
+func missingDrift(keys []string, want map[string]any, got uptimerobot.Object) bool {
+	return slices.ContainsFunc(keys, func(k string) bool {
+		w, ok := want[k]
+		return ok && (got[k] == nil || normalize(k, w) != normalize(k, got[k]))
+	})
 }
 
 // fail records err in the Ready condition. Failed API calls are retried with exponential backoff

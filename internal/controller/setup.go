@@ -20,7 +20,10 @@ type Options struct {
 
 // Setup registers all controllers with the manager.
 func Setup(mgr ctrl.Manager, o Options) error {
-	for _, setup := range []func(ctrl.Manager, Options) error{setupIntegration, setupMonitorGroup, setupMonitor, setupMaintenanceWindow, setupPublicStatusPage} {
+	for _, setup := range []func(ctrl.Manager, Options) error{
+		setupIntegration, setupMonitorGroup, setupMonitor, setupMaintenanceWindow,
+		setupPublicStatusPage, setupAlertContact, setupPublicStatusPageAnnouncement,
+	} {
 		if err := setup(mgr, o); err != nil {
 			return err
 		}

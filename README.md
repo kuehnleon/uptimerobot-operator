@@ -1,8 +1,8 @@
 # uptimerobot-operator
 
-Kubernetes operator managing [UptimeRobot](https://uptimerobot.com) monitors, monitor groups, integrations, maintenance windows and public status pages, using the [UptimeRobot v3 API](https://uptimerobot.com/api/v3/).
+Kubernetes operator managing [UptimeRobot](https://uptimerobot.com) monitors, monitor groups, integrations, personal alert contacts, maintenance windows, public status pages and announcements, using the [UptimeRobot v3 API](https://uptimerobot.com/api/v3/).
 
-- `Monitor`, `MonitorGroup`, `Integration`, `MaintenanceWindow` and `PublicStatusPage` custom resources
+- `Monitor`, `MonitorGroup`, `Integration`, `AlertContact`, `MaintenanceWindow`, `PublicStatusPage` and `PublicStatusPageAnnouncement` custom resources
 - Monitors for annotated `Ingress` and Traefik `IngressRoute` resources
 - Built for API rate limits: client-side rate limiting and one cached list request per resource type and sync interval, independent of the number of resources
 
@@ -53,6 +53,8 @@ spec:
   alertContacts:
     - integrationRef:
         name: team-slack # Integration in the same namespace
+    - alertContactRef:
+        name: on-call # Personal AlertContact in the same namespace
     - id: 1234567 # or any alert contact by ID
   groupRef:
     name: team-a # MonitorGroup in the same namespace
@@ -65,6 +67,25 @@ spec:
 ```
 
 See `kubectl explain monitor.spec` for all fields. Type specific settings (e.g. `dnsRecords`, `apiAssertions`) can be passed as-is via `spec.config`.
+
+### AlertContact
+
+Personal email and mobile push contacts can be managed directly. Push tokens are read from a Secret and are never written to status or logs. SMS and voice contacts require phone verification and must continue to be referenced by an existing UptimeRobot ID.
+
+```yaml
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: AlertContact
+metadata:
+  name: on-call
+spec:
+  type: MobileAppAndroid # Email, MobileAppIOS or MobileAppAndroid
+  pushTokenSecretRef:
+    name: on-call-push
+    key: token
+  deviceName: on-call phone
+```
+
+`type`, `value`, `pushTokenSecretRef` and `deviceName` are immutable because the API does not support changing a contact's address or push token. Updating the referenced Secret does not rotate the remote token; recreate the resource to change it.
 
 ### Ingress / Traefik IngressRoute
 
@@ -143,6 +164,27 @@ spec:
   monitorSelector:
     matchLabels:
       app: example
+```
+
+### PublicStatusPageAnnouncement
+
+Announcements are attached to a `PublicStatusPage` in the same namespace. `status` may be `Offline`, `Pending`, `Published` or `Archived`; `type` may be `Info`, `Maintenance` or `Issue`. Set `pinned: true` to pin the announcement on the page.
+
+```yaml
+apiVersion: uptimerobot.kuehnleon.github.io/v1alpha1
+kind: PublicStatusPageAnnouncement
+metadata:
+  name: scheduled-maintenance
+spec:
+  publicStatusPageRef:
+    name: status
+  title: Scheduled maintenance
+  content: We will perform scheduled maintenance.
+  type: Maintenance
+  status: Published
+  startDate: "2026-11-05T02:00:00Z"
+  endDate: "2026-11-05T03:00:00Z"
+  pinned: true
 ```
 
 Deleting a resource deletes it in UptimeRobot.

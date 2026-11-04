@@ -145,6 +145,13 @@ func (c *Client) Delete(ctx context.Context, path string, id int64) error {
 	return err
 }
 
+// Invalidate discards a cached list, for actions that modify a different resource path.
+func (c *Client) Invalidate(path string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.cache, path)
+}
+
 func (c *Client) mutate(ctx context.Context, method, path string, id int64, suffix string, body any) (Object, error) {
 	url := c.url + path
 	if id != 0 {

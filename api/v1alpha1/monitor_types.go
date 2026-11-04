@@ -60,7 +60,7 @@ type MonitorSpec struct {
 	// +optional
 	DomainExpirationReminder *bool `json:"domainExpirationReminder,omitempty"`
 	// +optional
-	AlertContacts []AlertContact `json:"alertContacts,omitempty"`
+	AlertContacts []MonitorAlertContact `json:"alertContacts,omitempty"`
 	// +optional
 	Tags []string `json:"tags,omitempty"`
 	// ID of a monitor group in UptimeRobot.
@@ -95,14 +95,17 @@ type HTTPAuth struct {
 	PasswordSecretRef corev1.SecretKeySelector `json:"passwordSecretRef"`
 }
 
-// +kubebuilder:validation:XValidation:rule="has(self.id) != has(self.integrationRef)",message="exactly one of id or integrationRef is required"
-type AlertContact struct {
+// +kubebuilder:validation:XValidation:rule="has(self.id) ? (!has(self.integrationRef) && !has(self.alertContactRef)) : (has(self.integrationRef) != has(self.alertContactRef))",message="exactly one of id, integrationRef or alertContactRef is required"
+type MonitorAlertContact struct {
 	// ID of an alert contact or integration in UptimeRobot.
 	// +optional
 	ID int64 `json:"id,omitempty"`
 	// Integration in the same namespace.
 	// +optional
 	IntegrationRef *corev1.LocalObjectReference `json:"integrationRef,omitempty"`
+	// AlertContact in the same namespace.
+	// +optional
+	AlertContactRef *corev1.LocalObjectReference `json:"alertContactRef,omitempty"`
 	// Minutes to wait before notifying (paid plans only).
 	// +optional
 	Threshold int32 `json:"threshold,omitempty"`
