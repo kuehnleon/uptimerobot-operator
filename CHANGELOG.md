@@ -2,6 +2,20 @@
 
 # Changelog
 
+## [v0.3.0](https://github.com/kuehnleon/uptimerobot-operator/releases/tag/v0.3.0) - 2026-11-04
+
+### Features
+
+- **alertcontact:** Add personal contacts and status page announcements ([#15](https://github.com/kuehnleon/uptimerobot-operator/pull/15))
+- **sync:** Support adoption and orphan deletion policy ([#16](https://github.com/kuehnleon/uptimerobot-operator/pull/16))
+
+### Documentation
+
+- **security:** Add security and contribution policies ([#13](https://github.com/kuehnleon/uptimerobot-operator/pull/13))
+
+### Other changes
+
+- **controller:** Cover delete retry
 ## [v0.2.0](https://github.com/kuehnleon/uptimerobot-operator/releases/tag/v0.2.0) - 2026-11-03
 
 ### Features
