@@ -50,14 +50,19 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	items := f.data[parts[0]]
+	collection, idIndex, actionIndex := parts[0], 1, 2
+	if len(parts) >= 3 && parts[0] == "psps" && parts[2] == "announcements" {
+		collection = strings.Join(parts[:3], "/")
+		idIndex, actionIndex = 3, 4
+	}
+	items := f.data[collection]
 	if items == nil {
 		items = map[int64]map[string]any{}
-		f.data[parts[0]] = items
+		f.data[collection] = items
 	}
 	var id int64
-	if len(parts) > 1 {
-		id, _ = strconv.ParseInt(parts[1], 10, 64)
+	if len(parts) > idIndex {
+		id, _ = strconv.ParseInt(parts[idIndex], 10, 64)
 	}
 	if r.Method != http.MethodGet {
 		f.calls = append(f.calls, r.Method+" "+r.URL.Path)
@@ -81,7 +86,16 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(body)
 	case items[id] == nil:
 		w.WriteHeader(http.StatusNotFound)
-	case r.Method == http.MethodPost && parts[2] == "pause":
+	case r.Method == http.MethodPost && len(parts) > actionIndex && (parts[actionIndex] == "pin" || parts[actionIndex] == "unpin"):
+		pageID, _ := strconv.ParseInt(parts[1], 10, 64)
+		if page := f.data["psps"][pageID]; page != nil {
+			if parts[actionIndex] == "pin" {
+				page["pinnedAnnouncementId"] = id
+			} else {
+				page["pinnedAnnouncementId"] = int64(0)
+			}
+		}
+	case r.Method == http.MethodPost && len(parts) > actionIndex && parts[actionIndex] == "pause":
 		items[id]["status"] = "PAUSED"
 		_ = json.NewEncoder(w).Encode(items[id])
 	case r.Method == http.MethodPatch:

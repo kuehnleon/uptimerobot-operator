@@ -73,9 +73,9 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("expected CEL validation error, got %v", err)
 	}
 	invalidContact := &v1alpha1.Monitor{ObjectMeta: metav1.ObjectMeta{Name: "invalid", Namespace: "default"},
-		Spec: v1alpha1.MonitorSpec{Type: "HTTP", URL: "x", AlertContacts: []v1alpha1.AlertContact{
+		Spec: v1alpha1.MonitorSpec{Type: "HTTP", URL: "x", AlertContacts: []v1alpha1.MonitorAlertContact{
 			{ID: 1, IntegrationRef: &corev1.LocalObjectReference{Name: "hook"}}}}}
-	if err := c.Create(ctx, invalidContact); err == nil || !strings.Contains(err.Error(), "exactly one of id or integrationRef") {
+	if err := c.Create(ctx, invalidContact); err == nil || !strings.Contains(err.Error(), "exactly one of id, integrationRef or alertContactRef") {
 		t.Fatalf("expected CEL validation error, got %v", err)
 	}
 	invalidMW := &v1alpha1.MaintenanceWindow{ObjectMeta: metav1.ObjectMeta{Name: "invalid", Namespace: "default"},
@@ -88,7 +88,7 @@ func TestIntegration(t *testing.T) {
 	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "default", Labels: map[string]string{"app": "web"},
 			Annotations: map[string]string{AnnotationPrefix + "enabled": "true", AnnotationPrefix + "interval": "60",
-				AnnotationPrefix + "alertContacts": `[{"integrationRef": {"name": "hook"}}]`,
+				AnnotationPrefix + "alertContacts": `[{"integrationRef": {"name": "hook"}}, {"alertContactRef": {"name": "mobile"}}]`,
 				AnnotationPrefix + "groupRef.name": "team"}},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{Host: "web.example.com"}},
@@ -105,12 +105,48 @@ func TestIntegration(t *testing.T) {
 				LocalObjectReference: corev1.LocalObjectReference{Name: "hook"}, Key: "url"}}}}
 	hookSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "hook", Namespace: "default"},
 		StringData: map[string]string{"url": "https://hooks.example.com/secret"}}
+	pushSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "mobile", Namespace: "default"},
+		StringData: map[string]string{"token": "private-push-token"}}
+	contact := &v1alpha1.AlertContact{ObjectMeta: metav1.ObjectMeta{Name: "mobile", Namespace: "default"},
+		Spec: v1alpha1.AlertContactSpec{Type: "MobileAppIOS", PushTokenSecretRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{Name: "mobile"}, Key: "token"}, DeviceName: "test device"}}
+	email := &v1alpha1.AlertContact{ObjectMeta: metav1.ObjectMeta{Name: "on-call", Namespace: "default"},
+		Spec: v1alpha1.AlertContactSpec{Type: "Email", Value: "on-call@example.com"}}
 	team := &v1alpha1.MonitorGroup{ObjectMeta: metav1.ObjectMeta{Name: "team", Namespace: "default"}}
-	for _, obj := range []client.Object{hookSecret, hook, team} {
+	for _, obj := range []client.Object{hookSecret, hook, pushSecret, contact, email, team} {
 		if err := c.Create(ctx, obj); err != nil {
 			t.Fatal(err)
 		}
 	}
+	eventually("personal alert contact synced", func() error {
+		_ = c.Get(ctx, client.ObjectKeyFromObject(contact), contact)
+		r := api.get("alert-contacts", contact.Status.ID)
+		if r["pushToken"] != "private-push-token" || r["platform"] != "ios" {
+			return fmt.Errorf("remote alert contact %v, status %+v", r, contact.Status)
+		}
+		if strings.Contains(fmt.Sprint(contact.Status), "private-push-token") {
+			return fmt.Errorf("push token leaked into status: %+v", contact.Status)
+		}
+		return nil
+	})
+	eventually("email alert contact synced", func() error {
+		_ = c.Get(ctx, client.ObjectKeyFromObject(email), email)
+		if r := api.get("alert-contacts", email.Status.ID); r["value"] != "on-call@example.com" || r["type"] != "Email" {
+			return fmt.Errorf("remote alert contact %v", r)
+		}
+		return nil
+	})
+	contact.Spec.Paused = true
+	if err := c.Update(ctx, contact); err != nil {
+		t.Fatal(err)
+	}
+	eventually("personal alert contact updated", func() error {
+		_ = c.Get(ctx, client.ObjectKeyFromObject(contact), contact)
+		if r := api.get("alert-contacts", contact.Status.ID); r["isActive"] != false {
+			return fmt.Errorf("remote alert contact %v", r)
+		}
+		return nil
+	})
 	eventually("integration synced", func() error {
 		_ = c.Get(ctx, client.ObjectKeyFromObject(hook), hook)
 		r := api.get("integrations", hook.Status.ID)
@@ -128,7 +164,7 @@ func TestIntegration(t *testing.T) {
 		r := api.get("monitors", m.Status.ID)
 		contacts := fmt.Sprint(r["assignedAlertContacts"])
 		if r["url"] != "https://web.example.com" || r["interval"] != float64(60) || m.Status.State != "UP" ||
-			contacts != fmt.Sprintf("[map[alertContactId:%d recurrence:0 threshold:0]]", hook.Status.ID) ||
+			contacts != fmt.Sprintf("[map[alertContactId:%d recurrence:0 threshold:0] map[alertContactId:%d recurrence:0 threshold:0]]", hook.Status.ID, contact.Status.ID) ||
 			r["groupId"] != float64(team.Status.ID) || api.get("monitor-groups", team.Status.ID)["name"] != "team" {
 			return fmt.Errorf("remote %v, status %+v", r, m.Status)
 		}
@@ -157,6 +193,50 @@ func TestIntegration(t *testing.T) {
 		_ = c.Get(ctx, client.ObjectKeyFromObject(mw), mw)
 		if r := api.get("maintenance-windows", mw.Status.ID); fmt.Sprint(r["monitorIds"]) != wantIDs || r["status"] != "paused" {
 			return fmt.Errorf("remote %v", r)
+		}
+		return nil
+	})
+	announcement := &v1alpha1.PublicStatusPageAnnouncement{
+		ObjectMeta: metav1.ObjectMeta{Name: "maintenance", Namespace: "default"},
+		Spec: v1alpha1.PublicStatusPageAnnouncementSpec{
+			PublicStatusPageRef: corev1.LocalObjectReference{Name: "status"},
+			Title:               "Scheduled maintenance", Content: "A brief maintenance window.",
+			Type: "Maintenance", Status: "Published", StartDate: "2026-01-01T03:00:00Z", Pinned: true,
+		},
+	}
+	if err := c.Create(ctx, announcement); err != nil {
+		t.Fatal(err)
+	}
+	eventually("announcement synced and pinned", func() error {
+		_ = c.Get(ctx, client.ObjectKeyFromObject(announcement), announcement)
+		r := api.get("psps/"+fmt.Sprint(psp.Status.ID)+"/announcements", announcement.Status.ID)
+		page := api.get("psps", psp.Status.ID)
+		if r["title"] != "Scheduled maintenance" || r["status"] != "Published" ||
+			page["pinnedAnnouncementId"] != announcement.Status.ID || announcement.Status.PublicStatusPageID != psp.Status.ID {
+			return fmt.Errorf("announcement %v, page %v, status %+v", r, page, announcement.Status)
+		}
+		return nil
+	})
+	announcement.Spec.Title = "Maintenance in progress"
+	announcement.Spec.Pinned = false
+	if err := c.Update(ctx, announcement); err != nil {
+		t.Fatal(err)
+	}
+	eventually("announcement updated and unpinned", func() error {
+		_ = c.Get(ctx, client.ObjectKeyFromObject(announcement), announcement)
+		r := api.get("psps/"+fmt.Sprint(psp.Status.ID)+"/announcements", announcement.Status.ID)
+		page := api.get("psps", psp.Status.ID)
+		if r["title"] != "Maintenance in progress" || page["pinnedAnnouncementId"] != int64(0) {
+			return fmt.Errorf("announcement %v, page %v", r, page)
+		}
+		return nil
+	})
+	if err := c.Delete(ctx, announcement); err != nil {
+		t.Fatal(err)
+	}
+	eventually("announcement deleted", func() error {
+		if r := api.get("psps/"+fmt.Sprint(psp.Status.ID)+"/announcements", announcement.Status.ID); r != nil {
+			return fmt.Errorf("remote announcement still exists: %v", r)
 		}
 		return nil
 	})

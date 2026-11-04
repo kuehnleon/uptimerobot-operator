@@ -18,6 +18,8 @@ var (
 			&PublicStatusPage{}, &PublicStatusPageList{},
 			&Integration{}, &IntegrationList{},
 			&MonitorGroup{}, &MonitorGroupList{},
+			&AlertContact{}, &AlertContactList{},
+			&PublicStatusPageAnnouncement{}, &PublicStatusPageAnnouncementList{},
 		)
 		metav1.AddToGroupVersion(s, GroupVersion)
 		return nil

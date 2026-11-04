@@ -55,6 +55,7 @@ func setupMonitor(mgr ctrl.Manager, o Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Monitor{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&v1alpha1.Integration{}, enqueueAll(mgr.GetClient(), func() client.ObjectList { return &v1alpha1.MonitorList{} })).
+		Watches(&v1alpha1.AlertContact{}, enqueueAll(mgr.GetClient(), func() client.ObjectList { return &v1alpha1.MonitorList{} })).
 		Watches(&v1alpha1.MonitorGroup{}, enqueueAll(mgr.GetClient(), func() client.ObjectList { return &v1alpha1.MonitorList{} })).
 		Complete(r)
 }
@@ -119,6 +120,12 @@ func monitorBody(ctx context.Context, c client.Reader, secret secretFunc, m *v1a
 			if a.IntegrationRef != nil {
 				var err error
 				if id, err = refID(ctx, c, m.Namespace, a.IntegrationRef.Name, &v1alpha1.Integration{}); err != nil {
+					return nil, err
+				}
+			}
+			if a.AlertContactRef != nil {
+				var err error
+				if id, err = refID(ctx, c, m.Namespace, a.AlertContactRef.Name, &v1alpha1.AlertContact{}); err != nil {
 					return nil, err
 				}
 			}
