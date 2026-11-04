@@ -41,6 +41,7 @@
     "apiRateLimit": { "type": "integer", "minimum": 1 },
     "ingress": { "type": "boolean" },
     "traefik": { "type": "boolean" },
+    "gatewayAPI": { "type": "boolean" },
     "replicaCount": { "type": "integer", "minimum": 0 },
     "leaderElection": { "type": "boolean" },
     "extraArgs": { "type": "array", "items": { "type": "string" } },

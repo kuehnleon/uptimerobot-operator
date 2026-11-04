@@ -3,7 +3,7 @@
 Kubernetes operator managing [UptimeRobot](https://uptimerobot.com) monitors, monitor groups, integrations, personal alert contacts, maintenance windows, public status pages and announcements, using the [UptimeRobot v3 API](https://uptimerobot.com/api/v3/).
 
 - `Monitor`, `MonitorGroup`, `Integration`, `AlertContact`, `MaintenanceWindow`, `PublicStatusPage` and `PublicStatusPageAnnouncement` custom resources
-- Monitors for annotated `Ingress` and Traefik `IngressRoute` resources
+- Monitors for annotated `Ingress`, Traefik `IngressRoute` and opt-in Gateway API `HTTPRoute` resources
 - Built for API rate limits: client-side rate limiting and one cached list request per resource type and sync interval, independent of the number of resources
 
 ## Installation
@@ -101,6 +101,23 @@ metadata:
 ```
 
 The URL defaults to the first host (`https` if TLS is configured) and can be overridden with `uptimerobot.kuehnleon.github.io/url`. The labels of the source resource are copied to the `Monitor`.
+
+### Gateway API HTTPRoute
+
+Install the Gateway API CRDs separately and opt in with Helm `--set gatewayAPI=true` (or the `--gateway-api` command-line flag). Annotate an `HTTPRoute` with `uptimerobot.kuehnleon.github.io/enabled: "true"`. A Monitor is created after a parent Gateway reports the route as accepted. The URL uses a concrete route/listener hostname and the listener's HTTP/HTTPS protocol; if no concrete hostname can be derived, set the `url` annotation explicitly.
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api
+  annotations:
+    uptimerobot.kuehnleon.github.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: public-gateway
+  hostnames: [api.example.com]
+```
 
 ### MonitorGroup
 

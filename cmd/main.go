@@ -31,6 +31,7 @@ func main() {
 	flag.StringVar(&apiURL, "api-url", uptimerobot.DefaultURL, "UptimeRobot API URL.")
 	flag.BoolVar(&o.Ingress, "ingress", true, "Create monitors for annotated Ingresses.")
 	flag.BoolVar(&o.Traefik, "traefik", true, "Create monitors for annotated Traefik IngressRoutes (if the CRD is installed).")
+	flag.BoolVar(&o.GatewayAPI, "gateway-api", false, "Create monitors for annotated Gateway API HTTPRoutes (if the CRDs are installed).")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "Metrics endpoint address, 0 to disable.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "Health probe endpoint address.")
 	flag.BoolVar(&leaderElect, "leader-elect", false, "Enable leader election.")

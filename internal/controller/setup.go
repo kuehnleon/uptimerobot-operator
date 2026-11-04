@@ -16,6 +16,7 @@ type Options struct {
 	SyncInterval time.Duration
 	Ingress      bool
 	Traefik      bool
+	GatewayAPI   bool
 }
 
 // Setup registers all controllers with the manager.
@@ -39,6 +40,11 @@ func Setup(mgr ctrl.Manager, o Options) error {
 			if err := setupIngressRoute(mgr, schema.GroupVersionKind{Group: group, Version: "v1alpha1", Kind: "IngressRoute"}); err != nil {
 				return err
 			}
+		}
+	}
+	if o.GatewayAPI {
+		if err := setupHTTPRouteSource(mgr); err != nil {
+			return err
 		}
 	}
 	return nil

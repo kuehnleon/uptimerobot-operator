@@ -7,6 +7,7 @@ Kubernetes operator for managing UptimeRobot monitors, groups, integrations, mai
 - Helm 3.8 or newer (for OCI chart support).
 - A Kubernetes cluster. The repository currently tests against Kubernetes 1.37; it does not yet declare a wider compatibility range.
 - An account-specific UptimeRobot Main API key.
+- Gateway API CRDs are required only when enabling the optional `gatewayAPI` source.
 
 ## Installation
 
@@ -53,6 +54,7 @@ Uninstalling the chart does not delete CRDs or custom resources. Deleting a cust
 | apiKey.value | string | `""` | Plain API key value. Creates a Secret; avoid putting credentials in Helm values or source control. |
 | apiRateLimit | int | `10` | Maximum UptimeRobot API requests per minute. FREE: 10; PRO: 2 x monitor limit (max 5000). |
 | extraArgs | list | `[]` | Additional command-line arguments passed to the operator. |
+| gatewayAPI | bool | `false` | Create Monitors for annotated Gateway API HTTPRoute resources (requires Gateway API CRDs). |
 | image | object | `{"pullPolicy":"IfNotPresent","repository":"ghcr.io/kuehnleon/uptimerobot-operator","tag":""}` | Image configuration for the operator. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.repository | string | `"ghcr.io/kuehnleon/uptimerobot-operator"` | Container image repository. |

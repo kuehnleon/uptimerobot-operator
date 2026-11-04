@@ -38,6 +38,11 @@ rules:
     resources: [ingressroutes]
     verbs: [get, list, watch]
   {{- end }}
+  {{- if .Values.gatewayAPI }}
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [httproutes, gateways]
+    verbs: [get, list, watch]
+  {{- end }}
   {{- if or .Values.ingress .Values.traefik }}
   - apiGroups: [networking.k8s.io, traefik.io, traefik.containo.us]
     resources: [ingresses/finalizers, ingressroutes/finalizers]
