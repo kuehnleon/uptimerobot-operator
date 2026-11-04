@@ -204,4 +204,94 @@ func TestMonitorSync(t *testing.T) {
 	if err := c.Get(ctx, req.NamespacedName, m); err == nil {
 		t.Fatal("finalizer not removed")
 	}
+
+	orphan := &v1alpha1.Monitor{ObjectMeta: metav1.ObjectMeta{Name: "orphan", Namespace: "default"},
+		Spec: v1alpha1.MonitorSpec{Type: "HTTP", URL: "https://orphan.example.com",
+			ResourcePolicySpec: v1alpha1.ResourcePolicySpec{DeletionPolicy: "Orphan"}}}
+	if err := c.Create(ctx, orphan); err != nil {
+		t.Fatal(err)
+	}
+	orphanReq := ctrl.Request{NamespacedName: client.ObjectKeyFromObject(orphan)}
+	if _, err := r.Reconcile(ctx, orphanReq); err != nil {
+		t.Fatal(err)
+	}
+	_ = c.Get(ctx, orphanReq.NamespacedName, orphan)
+	orphanID := orphan.Status.ID
+	expectCalls("POST /monitors")
+	if err := c.Delete(ctx, orphan); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Reconcile(ctx, orphanReq); err != nil {
+		t.Fatal(err)
+	}
+	expectCalls()
+	if api.get("monitors", orphanID) == nil {
+		t.Fatal("Orphan policy deleted the remote monitor")
+	}
+}
+
+func TestAdoptMonitor(t *testing.T) {
+	api := newFakeAPI()
+	api.with(func(d map[string]map[int64]map[string]any) {
+		d["monitors"] = map[int64]map[string]any{42: {
+			"id": float64(42), "type": "HTTP", "friendlyName": "adopted", "url": "https://example.com",
+			"interval": float64(300), "timeout": float64(30), "status": "UP",
+		}}
+	})
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+	m := &v1alpha1.Monitor{
+		ObjectMeta: metav1.ObjectMeta{Name: "adopted", Namespace: "default", Annotations: map[string]string{adoptIDAnnotation: "42"}},
+		Spec:       v1alpha1.MonitorSpec{Type: "HTTP", URL: "https://example.com"},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(m).WithStatusSubresource(m).Build()
+	r := &syncer[*v1alpha1.Monitor]{
+		Client: c, reader: c, ur: uptimerobot.New(srv.URL, "key", 6000, time.Hour),
+		events: &events.FakeRecorder{}, interval: time.Minute, path: "/monitors",
+		newObj: func() *v1alpha1.Monitor { return &v1alpha1.Monitor{} },
+		desired: func(ctx context.Context, m *v1alpha1.Monitor) (map[string]any, error) {
+			return monitorBody(ctx, c, secretGetter(c, m.Namespace), m)
+		},
+	}
+	req := ctrl.Request{NamespacedName: client.ObjectKeyFromObject(m)}
+	if _, err := r.Reconcile(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	_ = c.Get(context.Background(), req.NamespacedName, m)
+	if m.Status.ID != 42 {
+		t.Fatalf("adopted status ID = %d, want 42", m.Status.ID)
+	}
+	if calls := api.takeCalls(); strings.Join(calls, ",") != "PATCH /monitors/42" {
+		t.Fatalf("adoption calls: got %v", calls)
+	}
+
+	missingAPI := newFakeAPI()
+	missingServer := httptest.NewServer(missingAPI)
+	defer missingServer.Close()
+	missing := &v1alpha1.Monitor{
+		ObjectMeta: metav1.ObjectMeta{Name: "missing", Namespace: "default", Annotations: map[string]string{adoptIDAnnotation: "99"}},
+		Spec:       v1alpha1.MonitorSpec{Type: "HTTP", URL: "https://example.com"},
+	}
+	missingClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(missing).WithStatusSubresource(missing).Build()
+	missingSyncer := &syncer[*v1alpha1.Monitor]{
+		Client: missingClient, reader: missingClient, ur: uptimerobot.New(missingServer.URL, "key", 6000, time.Hour),
+		events: &events.FakeRecorder{}, interval: time.Minute, path: "/monitors",
+		newObj: func() *v1alpha1.Monitor { return &v1alpha1.Monitor{} },
+		desired: func(ctx context.Context, m *v1alpha1.Monitor) (map[string]any, error) {
+			return monitorBody(ctx, missingClient, secretGetter(missingClient, m.Namespace), m)
+		},
+	}
+	if _, err := missingSyncer.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(missing)}); err != nil {
+		t.Fatal(err)
+	}
+	if calls := missingAPI.takeCalls(); len(calls) != 0 {
+		t.Fatalf("missing adoption unexpectedly mutated API: %v", calls)
+	}
+	if missing.Status.ID != 0 {
+		t.Fatalf("missing adoption set status ID %d", missing.Status.ID)
+	}
 }

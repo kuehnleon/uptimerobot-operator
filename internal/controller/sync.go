@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,10 +27,12 @@ import (
 )
 
 const finalizer = "uptimerobot.kuehnleon.github.io/finalizer"
+const adoptIDAnnotation = "uptimerobot.kuehnleon.github.io/adopt-id"
 
 type object interface {
 	client.Object
 	GetResourceStatus() *v1alpha1.ResourceStatus
+	GetDeletionPolicy() string
 }
 
 // syncer reconciles a custom resource with its UptimeRobot counterpart at path.
@@ -80,17 +83,21 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, nil
 		}
 		if st.ID != 0 {
-			path := s.path
-			if s.pathFor != nil {
-				var err error
-				if path, err = s.pathFor(ctx, obj); err != nil {
-					return s.fail(ctx, obj, obj.DeepCopyObject().(T), configError{err})
+			if obj.GetDeletionPolicy() == "Orphan" {
+				s.events.Eventf(obj, nil, corev1.EventTypeNormal, "Orphaned", "Delete", "Left in UptimeRobot (ID %d)", st.ID)
+			} else {
+				path := s.path
+				if s.pathFor != nil {
+					var err error
+					if path, err = s.pathFor(ctx, obj); err != nil {
+						return s.fail(ctx, obj, obj.DeepCopyObject().(T), configError{err})
+					}
 				}
+				if err := s.ur.Delete(ctx, path, st.ID); err != nil {
+					return s.fail(ctx, obj, obj.DeepCopyObject().(T), err)
+				}
+				s.events.Eventf(obj, nil, corev1.EventTypeNormal, "Deleted", "Delete", "Deleted from UptimeRobot (ID %d)", st.ID)
 			}
-			if err := s.ur.Delete(ctx, path, st.ID); err != nil {
-				return s.fail(ctx, obj, obj.DeepCopyObject().(T), err)
-			}
-			s.events.Eventf(obj, nil, corev1.EventTypeNormal, "Deleted", "Delete", "Deleted from UptimeRobot (ID %d)", st.ID)
 		}
 		s.retries.reset(req.NamespacedName)
 		controllerutil.RemoveFinalizer(obj, finalizer)
@@ -129,9 +136,31 @@ func (s *syncer[T]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 	var remote uptimerobot.Object
 	var action string
+	if st.ID == 0 {
+		if annotationID, ok := obj.GetAnnotations()[adoptIDAnnotation]; ok {
+			id, err := strconv.ParseInt(annotationID, 10, 64)
+			if err != nil || id <= 0 {
+				return s.fail(ctx, obj, orig, configError{fmt.Errorf("annotation %q must contain a positive UptimeRobot ID", adoptIDAnnotation)})
+			}
+			if remote, err = s.ur.Get(ctx, path, id); err != nil {
+				return s.fail(ctx, obj, orig, err)
+			}
+			if remote == nil {
+				return s.fail(ctx, obj, orig, configError{fmt.Errorf("UptimeRobot ID %d not found; refusing to create a duplicate", id)})
+			}
+			st.ID = id
+			if err := s.Status().Patch(ctx, obj, client.MergeFrom(orig)); err != nil {
+				return ctrl.Result{}, err
+			}
+			orig = obj.DeepCopyObject().(T)
+			s.events.Eventf(obj, nil, corev1.EventTypeNormal, "Adopted", "Adopt", "Adopted from UptimeRobot (ID %d)", id)
+		}
+	}
 	if st.ID != 0 {
-		if remote, err = s.ur.Get(ctx, path, st.ID); err != nil {
-			return s.fail(ctx, obj, orig, err)
+		if remote == nil {
+			if remote, err = s.ur.Get(ctx, path, st.ID); err != nil {
+				return s.fail(ctx, obj, orig, err)
+			}
 		}
 		if remote == nil {
 			ctrl.LoggerFrom(ctx).Info("remote object not found, recreating", "id", st.ID)

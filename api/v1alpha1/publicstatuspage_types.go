@@ -7,6 +7,7 @@ import (
 
 // PublicStatusPageSpec defines the desired state of a PublicStatusPage.
 type PublicStatusPageSpec struct {
+	ResourcePolicySpec `json:",inline"`
 	// Defaults to the resource name.
 	// +optional
 	FriendlyName string `json:"friendlyName,omitempty"`
@@ -53,6 +54,7 @@ type PublicStatusPage struct {
 }
 
 func (p *PublicStatusPage) GetResourceStatus() *ResourceStatus { return &p.Status.ResourceStatus }
+func (p *PublicStatusPage) GetDeletionPolicy() string          { return p.Spec.DeletionPolicy }
 
 // +kubebuilder:object:root=true
 type PublicStatusPageList struct {

@@ -187,7 +187,17 @@ spec:
   pinned: true
 ```
 
-Deleting a resource deletes it in UptimeRobot.
+### Adoption and deletion
+
+To adopt an existing UptimeRobot object, add its ID as an annotation. The operator verifies the ID exists, records it in status, and then reconciles the declared spec; it will not create a duplicate when the ID is invalid or missing.
+
+```yaml
+metadata:
+  annotations:
+    uptimerobot.kuehnleon.github.io/adopt-id: "1234567"
+```
+
+Deleting a resource deletes its UptimeRobot object by default. Set `spec.deletionPolicy: Orphan` to remove the Kubernetes resource while leaving the remote object intact. `Delete` is the default for every resource kind.
 
 ## Development
 

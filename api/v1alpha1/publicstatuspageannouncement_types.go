@@ -8,6 +8,7 @@ import (
 // PublicStatusPageAnnouncementSpec defines the desired state of a status-page announcement.
 // +kubebuilder:validation:XValidation:rule="self.publicStatusPageRef == oldSelf.publicStatusPageRef",message="publicStatusPageRef is immutable"
 type PublicStatusPageAnnouncementSpec struct {
+	ResourcePolicySpec `json:",inline"`
 	// PublicStatusPage in the same namespace that owns this announcement.
 	PublicStatusPageRef corev1.LocalObjectReference `json:"publicStatusPageRef"`
 	// +kubebuilder:validation:MaxLength=255
@@ -59,6 +60,8 @@ type PublicStatusPageAnnouncement struct {
 func (a *PublicStatusPageAnnouncement) GetResourceStatus() *ResourceStatus {
 	return &a.Status.ResourceStatus
 }
+
+func (a *PublicStatusPageAnnouncement) GetDeletionPolicy() string { return a.Spec.DeletionPolicy }
 
 // +kubebuilder:object:root=true
 type PublicStatusPageAnnouncementList struct {

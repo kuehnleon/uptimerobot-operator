@@ -12,6 +12,7 @@ import (
 // +kubebuilder:validation:XValidation:rule="!(self.type in ['PORT', 'UDP']) || has(self.port)",message="port is required for PORT and UDP monitors"
 // +kubebuilder:validation:XValidation:rule="!(has(self.groupId) && has(self.groupRef))",message="groupId and groupRef are mutually exclusive"
 type MonitorSpec struct {
+	ResourcePolicySpec `json:",inline"`
 	// +kubebuilder:validation:Enum=HTTP;KEYWORD;PING;PORT;HEARTBEAT;DNS;API;UDP
 	Type string `json:"type"`
 	// Defaults to the resource name.
@@ -144,6 +145,7 @@ type Monitor struct {
 }
 
 func (m *Monitor) GetResourceStatus() *ResourceStatus { return &m.Status.ResourceStatus }
+func (m *Monitor) GetDeletionPolicy() string          { return m.Spec.DeletionPolicy }
 
 // +kubebuilder:object:root=true
 type MonitorList struct {
