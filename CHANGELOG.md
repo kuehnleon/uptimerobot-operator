@@ -2,6 +2,11 @@
 
 # Changelog
 
+## [v0.4.0](https://github.com/kuehnleon/uptimerobot-operator/releases/tag/v0.4.0) - 2026-11-06
+
+### Features
+
+- **source:** Support Gateway API HTTPRoutes ([#17](https://github.com/kuehnleon/uptimerobot-operator/pull/17))
 ## [v0.3.0](https://github.com/kuehnleon/uptimerobot-operator/releases/tag/v0.3.0) - 2026-11-04
 
 ### Features
