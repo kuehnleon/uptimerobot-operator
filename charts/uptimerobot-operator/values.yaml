@@ -27,6 +27,8 @@ apiRateLimit: 10
 ingress: true
 # traefik -- Create Monitors for annotated Traefik IngressRoute resources.
 traefik: true
+# gatewayAPI -- Create Monitors for annotated Gateway API HTTPRoute resources (requires Gateway API CRDs).
+gatewayAPI: false
 
 # replicaCount -- Number of operator replicas. Multiple replicas require leader election.
 replicaCount: 1

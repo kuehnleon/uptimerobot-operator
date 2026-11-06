@@ -37,6 +37,7 @@ spec:
             - --api-rate-limit={{ .Values.apiRateLimit }}
             - --ingress={{ .Values.ingress }}
             - --traefik={{ .Values.traefik }}
+            - --gateway-api={{ .Values.gatewayAPI }}
             - --leader-elect={{ .Values.leaderElection }}
             {{- range .Values.extraArgs }}
             - {{ . }}

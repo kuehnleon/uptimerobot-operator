@@ -47,7 +47,7 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := Options{Client: uptimerobot.New(srv.URL, "key", 6000, time.Hour), SyncInterval: time.Minute, Ingress: true, Traefik: true}
+	o := Options{Client: uptimerobot.New(srv.URL, "key", 6000, time.Hour), SyncInterval: time.Minute, Ingress: true, Traefik: true, GatewayAPI: true}
 	if err := Setup(mgr, o); err != nil {
 		t.Fatal(err)
 	}
